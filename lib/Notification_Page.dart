@@ -1,23 +1,119 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart'; // Penting untuk Wheel Time Picker
 
 void main() {
   runApp(const MaterialApp(
-    home: NotificationPage(),
+    home: NotifikasiPage(),
     debugShowCheckedModeBanner: false,
   ));
 }
 
-class NotificationPage extends StatefulWidget {
-  const NotificationPage({super.key});
+class NotifikasiPage extends StatefulWidget {
+  const NotifikasiPage({super.key});
 
   @override
-  State<NotificationPage> createState() => _NotificationPageState();
+  State<NotifikasiPage> createState() => _NotifikasiPageState();
 }
 
-class _NotificationPageState extends State<NotificationPage> {
-  // Variabel untuk menyimpan status switch
-  bool isMasukOn = false;
-  bool isPulangOn = false;
+class _NotifikasiPageState extends State<NotifikasiPage> {
+  
+  // 1. FUNGSI UNTUK MEMUNCULKAN POP UP (PENGHUBUNG)
+  void _showEditAlarmPopup(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: const Color(0xFF2C2C2C), // Background gelap sesuai gambar isi
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+      ),
+      builder: (context) {
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.5, // Tinggi 50% layar
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            children: [
+              // --- HEADER POP UP ---
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: const Text(
+                      "Batalkan",
+                      style: TextStyle(color: Colors.red, fontSize: 16),
+                    ),
+                  ),
+                  const Text(
+                    "Edit Alarm",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: const Text(
+                      "Selesai",
+                      style: TextStyle(
+                        color: Colors.green,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 25),
+
+              // --- TAB MASUK | PULANG ---
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF3D3D3D),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF5A5A5A),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Text("Masuk", style: TextStyle(color: Colors.white)),
+                      ),
+                    ),
+                    Expanded(
+                      child: Container(
+                        alignment: Alignment.center,
+                        child: const Text("Pulang", style: TextStyle(color: Colors.grey)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 25),
+
+              // --- WHEEL TIME PICKER ---
+              Expanded(
+                child: CupertinoTheme(
+                  data: const CupertinoThemeData(
+                    brightness: Brightness.dark,
+                  ),
+                  child: CupertinoTimerPicker(
+                    mode: CupertinoTimerPickerMode.hm,
+                    onTimerDurationChanged: (Duration newDuration) {},
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -27,67 +123,61 @@ class _NotificationPageState extends State<NotificationPage> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          // Gunakan Icons.arrow_back untuk gaya Android atau arrow_back_ios_new untuk iOS
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black),
+          onPressed: () {},
         ),
         title: const Text(
           'Notifikasi',
-          style: TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
         centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+      body: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Ingatkan Absen',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
+            const SizedBox(height: 20),
+            const Text("Setting Jam", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 12),
+            
+            // --- KOTAK SETTING JAM ---
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF5F6FA),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.wb_sunny, color: Colors.yellow, size: 28),
+                  const SizedBox(width: 15),
+                  const Text("12.00", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                  const Spacer(),
+                  
+                  // 2. MENGHUBUNGKAN TOMBOL PLUS KE POP UP
+                  IconButton(
+                    onPressed: () => _showEditAlarmPopup(context), // <--- INI PENGHUBUNGNYA
+                    icon: const Icon(Icons.add_circle_outline, color: Color(0xFF20295F), size: 30),
+                  ),
+                ],
               ),
             ),
+
+            const SizedBox(height: 30),
+            const Text("Ingatkan Absen", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 12),
             Container(
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFFF3F4F6),
-                borderRadius: BorderRadius.circular(15),
+                color: const Color(0xFFF5F6FA),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Column(
                 children: [
-                  // Baris Masuk
-                  _buildSwitchTile(
-                    icon: Icons.wb_sunny_rounded,
-                    iconColor: Colors.yellow.shade700,
-                    title: 'Masuk',
-                    value: isMasukOn,
-                    onChanged: (val) {
-                      setState(() {
-                        isMasukOn = val;
-                      });
-                    },
-                  ),
-                  // Garis pemisah tipis (opsional)
-                  Divider(height: 1, indent: 20, endIndent: 20, color: Colors.grey.shade300),
-                  // Baris Pulang
-                  _buildSwitchTile(
-                    icon: Icons.wb_sunny_rounded,
-                    iconColor: Colors.orange.shade700,
-                    title: 'Pulang',
-                    value: isPulangOn,
-                    onChanged: (val) {
-                      setState(() {
-                        isPulangOn = val;
-                      });
-                    },
-                  ),
+                  _buildAbsenRow("07.00", Colors.yellow),
+                  const Divider(height: 30),
+                  _buildAbsenRow("Pulang", Colors.orange),
                 ],
               ),
             ),
@@ -97,43 +187,15 @@ class _NotificationPageState extends State<NotificationPage> {
     );
   }
 
-  // --- Fungsi Helper untuk membuat baris Switch ---
-  // Ini adalah bagian yang hilang di kodingan Anda sebelumnya
-  Widget _buildSwitchTile({
-    required IconData icon,
-    required Color iconColor,
-    required String title,
-    required bool value,
-    required ValueChanged<bool> onChanged,
-  }) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      leading: Icon(icon, color: iconColor, size: 28),
-      title: Text(
-        title,
-        style: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w500,
-          color: Colors.black,
-        ),
-      ),
-     trailing: Switch(
-  value: value,
-  onChanged: onChanged,
-  // Cara baru menggunakan WidgetStateProperty
-  thumbColor: WidgetStateProperty.resolveWith<Color>((states) {
-    if (states.contains(WidgetState.selected)) {
-      return Colors.black; // Warna bulat saat ON
-    }
-    return Colors.white; // Warna bulat saat OFF
-  }),
-  trackColor: WidgetStateProperty.resolveWith<Color>((states) {
-    if (states.contains(WidgetState.selected)) {
-      return Colors.grey.shade400; // Warna jalur saat ON
-    }
-    return Colors.grey.shade300; // Warna jalur saat OFF
-  }),
-),
+  Widget _buildAbsenRow(String label, Color color) {
+    return Row(
+      children: [
+        Icon(Icons.wb_sunny, color: color, size: 28),
+        const SizedBox(width: 15),
+        Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+        const Spacer(),
+        const Icon(Icons.toggle_off_outlined, size: 38, color: Colors.black),
+      ],
     );
   }
 }

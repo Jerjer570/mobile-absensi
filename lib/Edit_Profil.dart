@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+
 void main() {
   runApp(MaterialApp(
-    home: EditProfile(),
-    debugShowCheckedModeBanner: false,
+    home: const EditProfile(),
+    debugShowCheckedModeBanner: false, // Menghilangkan banner debug
   ));
 }
 
@@ -11,6 +12,9 @@ class EditProfile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Warna Navy sesuai desain
+    const Color navyColor = Color(0xFF20295F);
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -18,7 +22,9 @@ class EditProfile extends StatelessWidget {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            // Aksi kembali
+          },
         ),
         title: const Text(
           'Edit Profile',
@@ -42,28 +48,24 @@ class EditProfile extends StatelessWidget {
               child: Stack(
                 children: [
                   Container(
-                    width: 150,
-                    height: 150,
+                    width: 140,
+                    height: 140,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0xFF20295F), width: 1),
-                    ),
-                    child: const CircleAvatar(
-                      backgroundColor: Colors.transparent,
-                      // Jika ada gambar: backgroundImage: AssetImage('assets/profile.png'),
+                      border: Border.all(color: navyColor, width: 1),
                     ),
                   ),
                   Positioned(
-                    bottom: 5,
+                    bottom: 10,
                     right: 5,
                     child: Container(
-                      padding: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.all(6),
                       decoration: const BoxDecoration(
-                        color: Color(0xFF20295F), // Warna navy sesuai desain
+                        color: Color(0xFF5C607E), // Warna abu keunguan icon kamera
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
-                        Icons.camera_alt_outlined,
+                        Icons.camera_alt,
                         color: Colors.white,
                         size: 20,
                       ),
@@ -73,48 +75,62 @@ class EditProfile extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(height: 40),
+            const SizedBox(height: 30),
 
-            // --- Form Input Section ---
+            // --- Form Input Section (Sesuai Gambar) ---
             _buildInputField(
               label: 'Name',
               hint: 'Nia Santika Putri',
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
             
             _buildInputField(
               label: 'Email',
               hint: 'niatsnk@gmail.com',
               keyboardType: TextInputType.emailAddress,
             ),
-            const SizedBox(height: 20),
-            
+            const SizedBox(height: 16),
+
             _buildInputField(
-              label: 'Password',
-              hint: '************',
-              obscureText: true,
+              label: 'No HP',
+              hint: '+62',
+              keyboardType: TextInputType.phone,
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
+
+            _buildInputField(
+              label: 'Alamat',
+              hint: 'Jl. Ahmad Yani',
+            ),
+            const SizedBox(height: 16),
             
             _buildInputField(
-              label: 'Date of Birth',
+              label: 'Tanggal Lahir',
               hint: '23/05/1995',
               suffixIcon: Icons.keyboard_arrow_down,
-              readOnly: true,
+            ),
+            const SizedBox(height: 16),
+
+            _buildInputField(
+              label: 'Jenis Kelamin',
+              hint: 'Laki - Laki',
+              suffixIcon: Icons.keyboard_arrow_down,
             ),
 
-            const SizedBox(height: 60),
+            const SizedBox(height: 40),
 
             // --- Tombol Save Changes ---
             SizedBox(
               width: double.infinity,
-              height: 55,
+              height: 50,
               child: ElevatedButton(
-                onPressed: () {},
+                onPressed: () {
+                  // Aksi simpan perubahan
+                },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF20295F), // Warna Navy
+                  backgroundColor: navyColor, 
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(8),
                   ),
                   elevation: 0,
                 ),
@@ -128,7 +144,7 @@ class EditProfile extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 30),
           ],
         ),
       ),
@@ -139,10 +155,8 @@ class EditProfile extends StatelessWidget {
   Widget _buildInputField({
     required String label,
     required String hint,
-    bool obscureText = false,
     TextInputType keyboardType = TextInputType.text,
     IconData? suffixIcon,
-    bool readOnly = false,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -157,17 +171,17 @@ class EditProfile extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         TextField(
-          readOnly: readOnly,
-          obscureText: obscureText,
           keyboardType: keyboardType,
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            suffixIcon: suffixIcon != null ? Icon(suffixIcon, color: Colors.black) : null,
+            hintStyle: const TextStyle(color: Colors.black87, fontSize: 14),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
+            suffixIcon: suffixIcon != null 
+                ? Icon(suffixIcon, color: Colors.black, size: 28) 
+                : null,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Colors.grey),
+              borderSide: BorderSide(color: Colors.grey.shade300),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
