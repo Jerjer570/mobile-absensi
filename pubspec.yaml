@@ -30,6 +30,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+    
+  table_calendar: ^3.1.2
 
   flutter_localizations:
     sdk: flutter
@@ -73,7 +75,16 @@ flutter:
     - assets/images/masuk.png
     - assets/images/keluar.png
     - assets/images/totaljam.png
-
+    - assets/images/Vector.png
+    - assets/images/Titik_3.png 
+    - assets/images/Vector-2.png 
+    - assets/images/Vector.png 
+    - assets/images/Vector-1.png 
+    - assets/images/icon_pezin.png 
+    - assets/images/icon_korab.png
+    - assets/images/Kalender.png
+    - assets/images/setting.png
+  
   # 2. Daftarkan Font Spesifik
   fonts:
     - family: Inter

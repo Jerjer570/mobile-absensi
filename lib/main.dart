@@ -1,3 +1,5 @@
+import 'package:absensi_tunas_jaya/home_page.dart';
+import 'package:absensi_tunas_jaya/main_page.dart';
 import 'package:flutter/material.dart';
 import 'login_page.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -30,7 +32,7 @@ class MyApp extends StatelessWidget {
         primaryColor: const Color(0xFF3498DB),
         useMaterial3: true,
       ),
-      home: const OnboardingPageFinal(), 
+      home: const MainPage(), 
     );
   }
 }
