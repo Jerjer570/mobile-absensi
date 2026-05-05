@@ -1,7 +1,9 @@
+import 'package:absensi_tunas_jaya/main_page.dart';
 import 'package:flutter/material.dart';
 import 'register_page.dart'; // Menyambungkan ke halaman Registrasi
 import 'forgot_password_page.dart';
 import 'home_page.dart';
+import 'main_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -223,10 +225,9 @@ class _LoginPageState extends State<LoginPage> {
                           } else {
                             // JIKA BERHASIL TERISI SEMUA:
                             // Pindah ke halaman Home Page dan hapus riwayat halaman agar tidak bisa di-back ke login
-                            Navigator.pushAndRemoveUntil(
-                              context,
-                              MaterialPageRoute(builder: (context) => const HomePage()),
-                              (route) => false,
+                              Navigator.pushReplacement(
+                              context, 
+                              MaterialPageRoute(builder: (context) => const MainPage()), 
                             );
                           }
                         },

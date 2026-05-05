@@ -232,41 +232,8 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
 
-            const SizedBox(height: 30),
-
-            // --- CUSTOM BOTTOM NAVIGATION BAR ---
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
-              child: Container(
-                height: 70,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF2854C6), // Biru gelap Tunas Jaya
-                  borderRadius: BorderRadius.circular(35),
-                  boxShadow: [BoxShadow(color: Colors.blue.withOpacity(0.2), blurRadius: 10, offset: const Offset(0, 5))],
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    // Tombol Aktif (Home)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                      decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(25)),
-                      child: Row(
-                        children: const [
-                          Icon(Icons.home, color: Colors.white, size: 20),
-                          SizedBox(width: 8),
-                          Text('HOME', style: TextStyle(color: Colors.white, fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold)),
-                        ],
-                      ),
-                    ),
-                    // Icon Grid (Layanan)
-                    IconButton(icon: const Icon(Icons.grid_view_rounded, color: Colors.white, size: 24), onPressed: () {}),
-                    // Icon Calendar (History)
-                    IconButton(icon: const Icon(Icons.calendar_today_rounded, color: Colors.white, size: 22), onPressed: () {}),
-                  ],
-                ),
-              ),
-            ),
+            const SizedBox(height: 100), // Spasi kosong agar tidak tertutup navigasi baru
+            
           ],
         ),
       ),
