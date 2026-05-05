@@ -1,5 +1,4 @@
-import 'package:absensi_tunas_jaya/home_page.dart';
-import 'package:absensi_tunas_jaya/main_page.dart';
+import 'pages/main_page.dart';
 import 'package:flutter/material.dart';
 import 'pages/login_page.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';

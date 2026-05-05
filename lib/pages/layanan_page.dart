@@ -1,5 +1,5 @@
-import 'package:absensi_tunas_jaya/koreksi_absen.dart';
-import 'package:absensi_tunas_jaya/permohonan_izin.dart';
+import 'koreksi_absen.dart';
+import 'permohonan_izin.dart';
 import 'package:flutter/material.dart';
 
 class LayananPage extends StatelessWidget {
