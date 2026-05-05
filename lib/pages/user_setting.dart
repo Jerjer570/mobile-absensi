@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
 import 'Edit_Profil.dart';
 import 'Notification_Page.dart';
+import '../service/logout_service.dart'; 
+import 'login_page.dart';
 
-void main() {
-  runApp(const MaterialApp(
-    home: UserSetting(),
-    debugShowCheckedModeBanner: false,
-  ));
-}
+
 
 class UserSetting extends StatelessWidget {
   const UserSetting({super.key});
@@ -114,7 +111,7 @@ class UserSetting extends StatelessWidget {
                 icon: Icons.logout,
                 title: 'Log out',
                 onTap: () {
-                  // Aksi logout
+                   _showLogoutDialog(context);// Aksi logout
                 },
               ),
             ),
@@ -123,6 +120,37 @@ class UserSetting extends StatelessWidget {
       ),
     );
   }
+  void _showLogoutDialog(BuildContext context) {
+  showDialog(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text("Log out"),
+      content: const Text("Apakah Anda yakin ingin keluar?"),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context), // Tutup dialog jika batal
+          child: const Text("Batal"),
+        ),
+        TextButton(
+          onPressed: () async {
+            // Jalankan logout
+            await AuthService.logout();
+            
+            // Navigasi ke Login
+            if (context.mounted) {
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => const LoginPage()),
+                (route) => false,
+              );
+            }
+          },
+          child: const Text("Keluar", style: TextStyle(color: Colors.red)),
+        ),
+      ],
+    ),
+  );
+}
 
   // Widget pembantu untuk membuat baris menu dengan efek sentuhan Android
   Widget _buildMenuTile({
