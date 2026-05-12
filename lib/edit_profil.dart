@@ -49,36 +49,149 @@ class _EditProfileState extends State<EditProfile> {
 
   File? _imageFile;
 
+  String? _existingPhotoUrl;
+
+  // =========================================================
+  // INIT
+  // =========================================================
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchProfileData();
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
+    _addressController.dispose();
+    _dateController.dispose();
+    _genderController.dispose();
+    super.dispose();
+  }
+
+  // =========================================================
+  // FETCH PROFILE
+  // =========================================================
+
+  Future<void> _fetchProfileData() async {
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+
+      final prefs =
+          await SharedPreferences.getInstance();
+
+      final token =
+          prefs.getString('auth_token');
+
+      final userId =
+          prefs.getInt('user_id');
+
+      if (token == null || userId == null) {
+        return;
+      }
+
+      final response = await http.get(
+        Uri.parse(
+          "${ApiConstants.updateProfile}/$userId",
+        ),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept': 'application/json',
+        },
+      );
+
+      print(response.body);
+
+      if (response.statusCode == 200) {
+
+        final data =
+            jsonDecode(response.body)['data'];
+
+        setState(() {
+
+          _nameController.text =
+              data['nama_lengkap'] ?? '';
+
+          _emailController.text =
+              data['email'] ?? '';
+
+          _phoneController.text =
+              data['no_hp'] ?? '';
+
+          _addressController.text =
+              data['alamat'] ?? '';
+
+          _dateController.text =
+              data['tanggal_lahir'] ?? '';
+
+          _genderController.text =
+              data['jenis_kelamin'] ?? '';
+
+          _existingPhotoUrl =
+              data['foto_profile'];
+
+        });
+      }
+
+    } catch (e) {
+
+      print("ERROR FETCH PROFILE: $e");
+
+    } finally {
+
+      setState(() {
+        _isLoading = false;
+      });
+
+    }
+  }
+
   // =========================================================
   // PICK IMAGE
   // =========================================================
 
-  Future<void> _pickImage(ImageSource source) async {
+  Future<void> _pickImage(
+      ImageSource source) async {
+
     try {
 
-      final ImagePicker picker = ImagePicker();
+      final ImagePicker picker =
+          ImagePicker();
 
-      final XFile? image = await picker.pickImage(
+      final XFile? image =
+          await picker.pickImage(
         source: source,
         imageQuality: 50,
       );
 
       if (image != null) {
+
         setState(() {
           _imageFile = File(image.path);
         });
+
       }
 
     } catch (e) {
+
       print("Error Pick Image: $e");
+
     }
   }
 
   // =========================================================
-  // SHOW IMAGE PICKER
+  // SHOW PICKER
   // =========================================================
 
   void _showPicker() {
+
     showModalBottomSheet(
       context: context,
       builder: (BuildContext bc) {
@@ -87,33 +200,31 @@ class _EditProfileState extends State<EditProfile> {
           child: Wrap(
             children: [
 
-              // =========================
-              // GALLERY
-              // =========================
-
               ListTile(
-                leading: const Icon(Icons.photo_library),
+                leading:
+                    const Icon(Icons.photo_library),
                 title: const Text('Galeri'),
                 onTap: () async {
 
                   Navigator.pop(context);
 
-                  await _pickImage(ImageSource.gallery);
+                  await _pickImage(
+                    ImageSource.gallery,
+                  );
                 },
               ),
 
-              // =========================
-              // CAMERA
-              // =========================
-
               ListTile(
-                leading: const Icon(Icons.photo_camera),
+                leading:
+                    const Icon(Icons.photo_camera),
                 title: const Text('Kamera'),
                 onTap: () async {
 
                   Navigator.pop(context);
 
-                  await _pickImage(ImageSource.camera);
+                  await _pickImage(
+                    ImageSource.camera,
+                  );
                 },
               ),
             ],
@@ -128,28 +239,26 @@ class _EditProfileState extends State<EditProfile> {
   // =========================================================
 
   Future<void> _selectDate() async {
-    try {
 
-      DateTime? picked = await showDatePicker(
-        context: context,
-        initialDate: DateTime(1995, 5, 23),
-        firstDate: DateTime(1970),
-        lastDate: DateTime.now(),
-      );
+    DateTime? picked =
+        await showDatePicker(
+      context: context,
+      initialDate: DateTime(2000),
+      firstDate: DateTime(1970),
+      lastDate: DateTime.now(),
+    );
 
-      if (picked != null) {
+    if (picked != null) {
 
-        setState(() {
-          _dateController.text =
-          "${picked.day.toString().padLeft(2, '0')}/"
-              "${picked.month.toString().padLeft(2, '0')}/"
-              "${picked.year}";
-        });
+      setState(() {
 
-      }
+        _dateController.text =
+            "${picked.year}-"
+            "${picked.month.toString().padLeft(2, '0')}-"
+            "${picked.day.toString().padLeft(2, '0')}";
 
-    } catch (e) {
-      print("Error Select Date: $e");
+      });
+
     }
   }
 
@@ -162,8 +271,6 @@ class _EditProfileState extends State<EditProfile> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
-      useSafeArea: true,
-      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
           top: Radius.circular(20),
@@ -172,70 +279,57 @@ class _EditProfileState extends State<EditProfile> {
       builder: (context) {
 
         return SafeArea(
-          child: Padding(
-            padding: EdgeInsets.only(
-              bottom:
-              MediaQuery.of(context).padding.bottom + 10,
-              top: 10,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
 
-                const Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: Text(
-                    "Pilih Jenis Kelamin",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                    ),
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  "Pilih Jenis Kelamin",
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
                   ),
                 ),
+              ),
 
-                // =========================
-                // LAKI LAKI
-                // =========================
-
-                ListTile(
-                  leading: const Icon(
-                    Icons.male,
-                    color: Colors.blue,
-                  ),
-                  title: const Text("Laki - Laki"),
-                  onTap: () {
-
-                    setState(() {
-                      _genderController.text =
-                      "Laki - Laki";
-                    });
-
-                    Navigator.pop(context);
-                  },
+              ListTile(
+                leading: const Icon(
+                  Icons.male,
+                  color: Colors.blue,
                 ),
+                title:
+                    const Text("Laki - Laki"),
+                onTap: () {
 
-                // =========================
-                // PEREMPUAN
-                // =========================
+                  setState(() {
+                    _genderController.text =
+                        "Laki - Laki";
+                  });
 
-                ListTile(
-                  leading: const Icon(
-                    Icons.female,
-                    color: Colors.pink,
-                  ),
-                  title: const Text("Perempuan"),
-                  onTap: () {
+                  Navigator.pop(context);
+                },
+              ),
 
-                    setState(() {
-                      _genderController.text =
-                      "Perempuan";
-                    });
-
-                    Navigator.pop(context);
-                  },
+              ListTile(
+                leading: const Icon(
+                  Icons.female,
+                  color: Colors.pink,
                 ),
-              ],
-            ),
+                title:
+                    const Text("Perempuan"),
+                onTap: () {
+
+                  setState(() {
+                    _genderController.text =
+                        "Perempuan";
+                  });
+
+                  Navigator.pop(context);
+                },
+              ),
+            ],
           ),
         );
       },
@@ -243,7 +337,7 @@ class _EditProfileState extends State<EditProfile> {
   }
 
   // =========================================================
-  // UPDATE PROFILE API
+  // UPDATE PROFILE
   // =========================================================
 
   Future<void> _updateProfile() async {
@@ -254,29 +348,22 @@ class _EditProfileState extends State<EditProfile> {
 
     try {
 
-      // =========================
-      // SHARED PREFERENCES
-      // =========================
-
       final prefs =
-      await SharedPreferences.getInstance();
+          await SharedPreferences.getInstance();
 
       final token =
-      prefs.getString('auth_token');
+          prefs.getString('auth_token');
 
       final userId =
-      prefs.getInt('user_id');
-
-      // =========================
-      // VALIDASI
-      // =========================
+          prefs.getInt('user_id');
 
       if (token == null || userId == null) {
 
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(context)
+            .showSnackBar(
           const SnackBar(
             content: Text(
-              "Token atau User ID tidak ditemukan",
+              "Session habis",
             ),
           ),
         );
@@ -284,32 +371,20 @@ class _EditProfileState extends State<EditProfile> {
         return;
       }
 
-      // =========================
-      // URL API
-      // =========================
-
       final url = Uri.parse(
         "${ApiConstants.updateProfile}/$userId",
       );
 
-      // =========================
-      // MULTIPART REQUEST
-      // =========================
-
-      var request = http.MultipartRequest(
+      var request =
+          http.MultipartRequest(
         'POST',
         url,
       );
 
-      request.headers['Authorization'] =
-      'Bearer $token';
-
-      request.headers['Accept'] =
-      'application/json';
-
-      // =========================
-      // FIELD DATA
-      // =========================
+      request.headers.addAll({
+        'Authorization': 'Bearer $token',
+        'Accept': 'application/json',
+      });
 
       request.fields['email'] =
           _emailController.text;
@@ -330,11 +405,7 @@ class _EditProfileState extends State<EditProfile> {
           _genderController.text;
 
       request.fields['device_id'] =
-      'android_001';
-
-      // =========================
-      // UPLOAD FOTO
-      // =========================
+          'android_001';
 
       if (_imageFile != null) {
 
@@ -347,31 +418,24 @@ class _EditProfileState extends State<EditProfile> {
 
       }
 
-      // =========================
-      // SEND REQUEST
-      // =========================
-
       var response =
-      await request.send();
+          await request.send();
 
       var res =
-      await http.Response.fromStream(response);
+          await http.Response.fromStream(
+              response);
 
       final data =
-      jsonDecode(res.body);
+          jsonDecode(res.body);
 
-      print("STATUS CODE: ${response.statusCode}");
-      print("RESPONSE: $data");
-
-      // =========================
-      // SUCCESS
-      // =========================
+      print(data);
 
       if (response.statusCode == 200) {
 
         if (mounted) {
 
-          ScaffoldMessenger.of(context).showSnackBar(
+          ScaffoldMessenger.of(context)
+              .showSnackBar(
             const SnackBar(
               content: Text(
                 "Profil berhasil diperbarui",
@@ -385,40 +449,30 @@ class _EditProfileState extends State<EditProfile> {
 
       } else {
 
-        // =========================
-        // FAILED
-        // =========================
-
-        if (mounted) {
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                data['message'] ??
-                    "Gagal update profile",
-              ),
-            ),
-          );
-
-        }
-
-      }
-
-    } catch (e) {
-
-      print("Error Update Profile: $e");
-
-      if (mounted) {
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+        ScaffoldMessenger.of(context)
+            .showSnackBar(
+          SnackBar(
             content: Text(
-              "Terjadi kesalahan",
+              data['message'] ??
+                  "Gagal update profile",
             ),
           ),
         );
 
       }
+
+    } catch (e) {
+
+      print("ERROR UPDATE: $e");
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        const SnackBar(
+          content: Text(
+            "Terjadi kesalahan",
+          ),
+        ),
+      );
 
     } finally {
 
@@ -440,10 +494,6 @@ class _EditProfileState extends State<EditProfile> {
 
       backgroundColor: Colors.white,
 
-      // =====================================================
-      // APPBAR
-      // =====================================================
-
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -463,207 +513,226 @@ class _EditProfileState extends State<EditProfile> {
           style: TextStyle(
             color: Colors.black,
             fontWeight: FontWeight.bold,
-            fontSize: 20,
           ),
         ),
 
         centerTitle: true,
       ),
 
-      // =====================================================
-      // BODY
-      // =====================================================
+      body: _isLoading &&
+              _nameController.text.isEmpty
+          ? const Center(
+              child:
+                  CircularProgressIndicator(),
+            )
+          : SingleChildScrollView(
+              padding:
+                  const EdgeInsets.symmetric(
+                horizontal: 24,
+              ),
 
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 24,
-        ),
+              child: Column(
+                children: [
 
-        child: Column(
-          crossAxisAlignment:
-          CrossAxisAlignment.start,
+                  const SizedBox(height: 20),
 
-          children: [
+                  Center(
+                    child: GestureDetector(
+                      onTap: _showPicker,
 
-            const SizedBox(height: 20),
+                      child: Stack(
+                        children: [
 
-            // =================================================
-            // FOTO PROFILE
-            // =================================================
+                          Container(
+                            width: 140,
+                            height: 140,
 
-            Center(
-              child: GestureDetector(
-                onTap: _showPicker,
+                            decoration:
+                                BoxDecoration(
+                              shape:
+                                  BoxShape.circle,
 
-                child: Stack(
-                  children: [
+                              border: Border.all(
+                                color: navyColor,
+                                width: 1.5,
+                              ),
 
-                    Container(
-                      width: 140,
-                      height: 140,
+                              color: Colors
+                                  .grey.shade200,
 
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
+                              image:
+                                  _imageFile !=
+                                          null
+                                      ? DecorationImage(
+                                          image:
+                                              FileImage(
+                                            _imageFile!,
+                                          ),
+                                          fit: BoxFit
+                                              .cover,
+                                        )
+                                      : (_existingPhotoUrl !=
+                                              null
+                                          ? DecorationImage(
+                                              image:
+                                                  NetworkImage(
+                                                _existingPhotoUrl!,
+                                              ),
+                                              fit: BoxFit
+                                                  .cover,
+                                            )
+                                          : null),
+                            ),
 
-                        border: Border.all(
-                          color: navyColor,
-                          width: 1.5,
-                        ),
-
-                        color: Colors.grey.shade200,
-
-                        image: _imageFile != null
-                            ? DecorationImage(
-                          image: FileImage(
-                            _imageFile!,
+                            child: _imageFile ==
+                                        null &&
+                                    _existingPhotoUrl ==
+                                        null
+                                ? const Icon(
+                                    Icons.person,
+                                    size: 80,
+                                    color:
+                                        Colors.grey,
+                                  )
+                                : null,
                           ),
-                          fit: BoxFit.cover,
-                        )
-                            : null,
+
+                          Positioned(
+                            bottom: 10,
+                            right: 5,
+
+                            child: Container(
+                              padding:
+                                  const EdgeInsets
+                                      .all(6),
+
+                              decoration:
+                                  const BoxDecoration(
+                                color: Color(
+                                    0xFF5C607E),
+                                shape:
+                                    BoxShape.circle,
+                              ),
+
+                              child: const Icon(
+                                Icons.camera_alt,
+                                color:
+                                    Colors.white,
+                                size: 20,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 30),
+
+                  _buildInputField(
+                    label: 'Nama',
+                    controller:
+                        _nameController,
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  _buildInputField(
+                    label: 'Email',
+                    controller:
+                        _emailController,
+                    keyboardType:
+                        TextInputType
+                            .emailAddress,
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  _buildInputField(
+                    label: 'No HP',
+                    controller:
+                        _phoneController,
+                    keyboardType:
+                        TextInputType.phone,
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  _buildInputField(
+                    label: 'Alamat',
+                    controller:
+                        _addressController,
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  _buildInputField(
+                    label: 'Tanggal Lahir',
+                    controller:
+                        _dateController,
+                    suffixIcon:
+                        Icons.calendar_today,
+                    readOnly: true,
+                    onTap: _selectDate,
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  _buildInputField(
+                    label: 'Jenis Kelamin',
+                    controller:
+                        _genderController,
+                    suffixIcon:
+                        Icons.keyboard_arrow_down,
+                    readOnly: true,
+                    onTap: _selectGender,
+                  ),
+
+                  const SizedBox(height: 40),
+
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+
+                    child: ElevatedButton(
+                      onPressed:
+                          _isLoading
+                              ? null
+                              : _updateProfile,
+
+                      style:
+                          ElevatedButton
+                              .styleFrom(
+                        backgroundColor:
+                            navyColor,
                       ),
 
-                      child: _imageFile == null
-                          ? const Icon(
-                        Icons.person,
-                        size: 80,
-                        color: Colors.grey,
-                      )
-                          : null,
-                    ),
+                      child: Text(
+                        _isLoading
+                            ? 'Memproses...'
+                            : 'Save Changes',
 
-                    Positioned(
-                      bottom: 10,
-                      right: 5,
-
-                      child: Container(
-                        padding:
-                        const EdgeInsets.all(6),
-
-                        decoration:
-                        const BoxDecoration(
+                        style:
+                            const TextStyle(
                           color:
-                          Color(0xFF5C607E),
-                          shape: BoxShape.circle,
-                        ),
-
-                        child: const Icon(
-                          Icons.camera_alt,
-                          color: Colors.white,
-                          size: 20,
+                              Colors.white,
+                          fontSize: 18,
+                          fontWeight:
+                              FontWeight.w600,
                         ),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+
+                  const SizedBox(height: 30),
+                ],
               ),
             ),
-
-            const SizedBox(height: 30),
-
-            // =================================================
-            // INPUT FIELD
-            // =================================================
-
-            _buildInputField(
-              label: 'Nama',
-              controller: _nameController,
-            ),
-
-            const SizedBox(height: 16),
-
-            _buildInputField(
-              label: 'Email',
-              controller: _emailController,
-              keyboardType:
-              TextInputType.emailAddress,
-            ),
-
-            const SizedBox(height: 16),
-
-            _buildInputField(
-              label: 'No HP',
-              controller: _phoneController,
-              keyboardType:
-              TextInputType.phone,
-            ),
-
-            const SizedBox(height: 16),
-
-            _buildInputField(
-              label: 'Alamat',
-              controller: _addressController,
-            ),
-
-            const SizedBox(height: 16),
-
-            _buildInputField(
-              label: 'Tanggal Lahir',
-              controller: _dateController,
-              suffixIcon:
-              Icons.keyboard_arrow_down,
-              readOnly: true,
-              onTap: _selectDate,
-            ),
-
-            const SizedBox(height: 16),
-
-            _buildInputField(
-              label: 'Jenis Kelamin',
-              controller: _genderController,
-              suffixIcon:
-              Icons.keyboard_arrow_down,
-              readOnly: true,
-              onTap: _selectGender,
-            ),
-
-            const SizedBox(height: 40),
-
-            // =================================================
-            // BUTTON SAVE
-            // =================================================
-
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-
-              child: ElevatedButton(
-                onPressed:
-                _isLoading
-                    ? null
-                    : _updateProfile,
-
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: navyColor,
-
-                  shape: RoundedRectangleBorder(
-                    borderRadius:
-                    BorderRadius.circular(8),
-                  ),
-                ),
-
-                child: Text(
-                  _isLoading
-                      ? 'Memproses...'
-                      : 'Save Changes',
-
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 30),
-          ],
-        ),
-      ),
     );
   }
 
   // =========================================================
-  // INPUT FIELD WIDGET
+  // INPUT FIELD
   // =========================================================
 
   Widget _buildInputField({
@@ -678,7 +747,7 @@ class _EditProfileState extends State<EditProfile> {
 
     return Column(
       crossAxisAlignment:
-      CrossAxisAlignment.start,
+          CrossAxisAlignment.start,
 
       children: [
 
@@ -688,7 +757,6 @@ class _EditProfileState extends State<EditProfile> {
           style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
-            color: Colors.black,
           ),
         ),
 
@@ -709,40 +777,38 @@ class _EditProfileState extends State<EditProfile> {
                 : Colors.transparent,
 
             contentPadding:
-            const EdgeInsets.symmetric(
+                const EdgeInsets.symmetric(
               horizontal: 12,
               vertical: 15,
             ),
 
             suffixIcon: suffixIcon != null
                 ? Icon(
-              suffixIcon,
-              color: Colors.black,
-              size: 28,
-            )
+                    suffixIcon,
+                    color: Colors.black,
+                  )
                 : null,
 
             border: OutlineInputBorder(
               borderRadius:
-              BorderRadius.circular(8),
+                  BorderRadius.circular(8),
+            ),
+
+            enabledBorder:
+                OutlineInputBorder(
+              borderRadius:
+                  BorderRadius.circular(8),
 
               borderSide: BorderSide(
-                color: Colors.grey.shade300,
+                color:
+                    Colors.grey.shade300,
               ),
             ),
 
-            enabledBorder: OutlineInputBorder(
+            focusedBorder:
+                OutlineInputBorder(
               borderRadius:
-              BorderRadius.circular(8),
-
-              borderSide: BorderSide(
-                color: Colors.grey.shade300,
-              ),
-            ),
-
-            focusedBorder: OutlineInputBorder(
-              borderRadius:
-              BorderRadius.circular(8),
+                  BorderRadius.circular(8),
 
               borderSide: BorderSide(
                 color: navyColor,
