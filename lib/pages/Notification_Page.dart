@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // Wajib import ini
 import '../models/alarm_model.dart';
-import '../service/notifikasi_service.dart'; // Pastikan file ini ada
+import '../service/notifikasi_service.dart';
+import '../service/alarm_scheduler_service.dart';
 
 class NotifikasiPage extends StatefulWidget {
   const NotifikasiPage({super.key});
@@ -11,14 +13,48 @@ class NotifikasiPage extends StatefulWidget {
 
 class _NotifikasiPageState extends State<NotifikasiPage> {
   // --- STATE DATA ---
-  String mainTime = "12.00";
+  String mainTime = "07.00"; 
   
   List<AlarmModel> alarms = [
-    AlarmModel(label: "07.00", time: "07.00", isActive: true),
-    AlarmModel(label: "Pulang", time: "17.00", isActive: false),
+    AlarmModel(label: "07.00", time: "07.00", isActive: false), // Index 0: Masuk
+    AlarmModel(label: "Pulang", time: "17.00", isActive: false), // Index 1: Pulang
   ];
 
-  // HAPUS baris 'get NotificationService => null;' yang sebelumnya ada di sini
+  @override
+  void initState() {
+    super.initState();
+    _loadAlarmData(); // Muat data dari memori saat aplikasi dibuka
+  }
+
+  // --- LOGIKA PENYIMPANAN (PERSISTENCE) ---
+
+  // 1. Fungsi memuat data dari SharedPreferences
+  Future<void> _loadAlarmData() async {
+    final prefs = await SharedPreferences.getInstance();
+    
+    // Ambil data list alarm (dalam bentuk String JSON)
+    final List<String>? savedAlarms = prefs.getStringList('saved_alarms');
+    final String? savedMainTime = prefs.getString('saved_main_time');
+
+    if (savedAlarms != null) {
+      setState(() {
+        alarms = savedAlarms.map((item) => AlarmModel.fromJson(item)).toList();
+        if (savedMainTime != null) mainTime = savedMainTime;
+      });
+    }
+  }
+
+  // 2. Fungsi menyimpan data ke SharedPreferences
+  Future<void> _saveAlarmData() async {
+    final prefs = await SharedPreferences.getInstance();
+    
+    // Ubah List Objek ke List String JSON agar bisa disimpan
+    List<String> alarmStrings = alarms.map((item) => item.toJson()).toList();
+    
+    await prefs.setStringList('saved_alarms', alarmStrings);
+    await prefs.setString('saved_main_time', mainTime);
+    print("Data alarm disimpan ke memori HP");
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,8 +88,6 @@ class _NotifikasiPageState extends State<NotifikasiPage> {
     );
   }
 
-  // --- UI COMPONENTS ---
-
   Widget _buildSectionTitle(String title) {
     return Padding(
       padding: const EdgeInsets.only(left: 4, bottom: 12),
@@ -76,16 +110,36 @@ class _NotifikasiPageState extends State<NotifikasiPage> {
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           const Spacer(),
           IconButton(
-            // Memanggil Service yang Benar
             onPressed: () => NotificationService.showEditAlarmPopup(
-            context, 
-              onTimeChanged: (duration) {
+              context, 
+              onSave: (duration, isMasuk) async {
                 setState(() {
-                  // Format jam ke 00.00 (pakai titik sesuai desain Anda)
-                  String hours = duration.inHours.toString().padLeft(2, '0');
-                  String minutes = (duration.inMinutes % 60).toString().padLeft(2, '0');
-                  mainTime = "$hours.$minutes";
+                  String hour = duration.inHours.toString().padLeft(2, '0');
+                  String min = (duration.inMinutes % 60).toString().padLeft(2, '0');
+                  String newTime = "$hour.$min";
+
+                  int index = isMasuk ? 0 : 1;
+                  alarms[index] = alarms[index].copyWith(
+                    time: newTime,
+                    label: isMasuk ? newTime : "Pulang", 
+                  );
+                  mainTime = newTime;
                 });
+
+                // SIMPAN PERUBAHAN KE MEMORI
+                await _saveAlarmData();
+
+                // UPDATE JADWAL ALARM DI SISTEM HP JIKA TOGGLE ON
+                int targetId = isMasuk ? 0 : 1;
+                if (alarms[targetId].isActive) {
+                  await AlarmSchedulerService.scheduleNotification(
+                    id: targetId,
+                    title: "Waktunya Absen ${isMasuk ? 'Masuk' : 'Pulang'}!",
+                    body: "Jangan lupa lakukan presensi Tunas Jaya sekarang.",
+                    hour: duration.inHours,
+                    minute: duration.inMinutes % 60,
+                  );
+                }
               }
             ),
             icon: const Icon(Icons.add_circle_outline, color: Color(0xFF20295F), size: 30),
@@ -120,11 +174,30 @@ class _NotifikasiPageState extends State<NotifikasiPage> {
           Switch.adaptive(
             value: alarm.isActive,
             activeColor: const Color(0xFF20295F),
-            onChanged: (val) {
+            onChanged: (val) async {
               setState(() {
                 int index = alarms.indexOf(alarm);
                 alarms[index] = alarm.copyWith(isActive: val);
               });
+
+              // SIMPAN STATUS TOGGLE KE MEMORI
+              await _saveAlarmData();
+
+              if (val) {
+                List<String> parts = alarm.time.split('.'); 
+                int hour = int.parse(parts[0]);
+                int minute = int.parse(parts[1]);
+
+                await AlarmSchedulerService.scheduleNotification(
+                  id: alarm.label == "Pulang" ? 1 : 0, 
+                  title: "Waktunya Absen ${alarm.label}!",
+                  body: "Buka aplikasi untuk presensi sekarang.",
+                  hour: hour,
+                  minute: minute,
+                );
+              } else {
+                await AlarmSchedulerService.cancelNotification(alarm.label == "Pulang" ? 1 : 0);
+              }
             },
           ),
         ],

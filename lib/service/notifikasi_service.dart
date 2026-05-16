@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 class NotificationService {
   static void showEditAlarmPopup(
     BuildContext context, {
-    required Function(Duration) onTimeChanged, // Callback untuk mengirim data ke UI
+    required Function(Duration, bool) onSave, // Callback untuk mengirim data ke UI
   }) {
     // Variabel lokal untuk menyimpan status di dalam popup
     bool isMasuk = true;
@@ -26,7 +26,7 @@ class NotificationService {
               height: MediaQuery.of(context).size.height * 0.55,
               child: Column(
                 children: [
-                  // --- INDICATOR PINDAH (Android Handle) ---
+                  // --- INDICATOR (Android Handle) ---
                   Container(
                     width: 40,
                     height: 5,
@@ -37,7 +37,7 @@ class NotificationService {
                     ),
                   ),
 
-                  // --- HEADER (Batalkan, Judul, Selesai) ---
+                  // --- HEADER ---
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -53,8 +53,8 @@ class NotificationService {
                               fontWeight: FontWeight.bold)),
                       TextButton(
                         onPressed: () {
-                          // Kirim hasil akhir saat tombol Selesai ditekan
-                          onTimeChanged(currentDuration);
+                          // PERBAIKAN: Memanggil onSave dengan mengirim durasi DAN status isMasuk
+                          onSave(currentDuration, isMasuk);
                           Navigator.pop(context);
                         },
                         child: const Text("Selesai",
@@ -67,7 +67,7 @@ class NotificationService {
                   ),
                   const SizedBox(height: 20),
 
-                  // --- SEGMENTED CONTROL (Masuk | Pulang) ---
+                  // --- TAB SELECTOR (Masuk | Pulang) ---
                   Container(
                     height: 40,
                     padding: const EdgeInsets.all(2),
@@ -77,7 +77,6 @@ class NotificationService {
                     ),
                     child: Row(
                       children: [
-                        // Tombol Masuk
                         Expanded(
                           child: GestureDetector(
                             onTap: () => setPopupState(() => isMasuk = true),
@@ -96,12 +95,10 @@ class NotificationService {
                             ),
                           ),
                         ),
-                        // Garis Pemisah
                         Container(
                             width: 1,
                             height: 20,
                             color: Colors.white.withOpacity(0.1)),
-                        // Tombol Pulang
                         Expanded(
                           child: GestureDetector(
                             onTap: () => setPopupState(() => isMasuk = false),
@@ -125,7 +122,7 @@ class NotificationService {
                   ),
                   const SizedBox(height: 30),
 
-                  // --- BOX TIME PICKER ---
+                  // --- TIME PICKER ---
                   Expanded(
                     child: Container(
                       decoration: BoxDecoration(
@@ -140,7 +137,6 @@ class NotificationService {
                           mode: CupertinoTimerPickerMode.hm,
                           initialTimerDuration: currentDuration,
                           onTimerDurationChanged: (Duration newDuration) {
-                            // Update variabel durasi lokal
                             currentDuration = newDuration;
                           },
                         ),

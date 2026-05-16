@@ -11,15 +11,21 @@ class AlarmModel {
     this.isActive = false,
   });
 
-  AlarmModel copyWith({bool? isActive}) {
+  // --- PERBAIKAN DI SINI ---
+  // Menambahkan parameter label dan time agar bisa diupdate di NotificationPage
+  AlarmModel copyWith({
+    String? label,
+    String? time,
+    bool? isActive,
+  }) {
     return AlarmModel(
-      label: label,
-      time: time,
+      label: label ?? this.label, // Jika label baru kosong, pakai label lama
+      time: time ?? this.time,    // Jika time baru kosong, pakai time lama
       isActive: isActive ?? this.isActive,
     );
   }
 
-  // --- Tambahan agar bisa simpan ke Memori HP dengan mudah ---
+  // --- Fungsi untuk simpan ke Memori HP (Shared Preferences) ---
   Map<String, dynamic> toMap() {
     return {
       'label': label,

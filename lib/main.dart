@@ -2,10 +2,18 @@ import 'pages/main_page.dart';
 import 'package:flutter/material.dart';
 import 'pages/login_page.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'service/alarm_scheduler_service.dart'; 
+import 'pages/user_setting.dart'; 
 
-void main() {
+// 2. GANTI main() LAMA DENGAN INI
+void main() async {
+  // Wajib ditambahkan agar plugin native bisa berjalan
+  WidgetsFlutterBinding.ensureInitialized();
+  // Inisialisasi alarm/notifikasi sistem
+  await AlarmSchedulerService.init(); 
   runApp(const MyApp());
 }
+
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -31,7 +39,8 @@ class MyApp extends StatelessWidget {
         primaryColor: const Color(0xFF3498DB),
         useMaterial3: true,
       ),
-      home: const MainPage(), 
+
+      home: const UserSetting (), 
     );
   }
 }
