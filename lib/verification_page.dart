@@ -3,7 +3,8 @@ import 'package:flutter/services.dart';
 import 'new_password_page.dart';
 
 class VerificationPage extends StatefulWidget {
-  const VerificationPage({super.key});
+  final String email;
+  const VerificationPage({super.key, required this.email});
 
   @override
   State<VerificationPage> createState() => _VerificationPageState();

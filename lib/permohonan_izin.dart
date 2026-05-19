@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
+import 'package:intl/intl.dart';
+import 'services/attendance_service.dart';
 
 class PermohonanIzinPage extends StatefulWidget {
   const PermohonanIzinPage({super.key});
@@ -10,9 +12,10 @@ class PermohonanIzinPage extends StatefulWidget {
 
 class _PermohonanIzinPageState extends State<PermohonanIzinPage> {
   String? _jenisIzin;
-  List<DateTime> _selectedDates = []; 
+  List<DateTime> _selectedDates = [];
   String? _uploadedFileName;
   final TextEditingController _alasanController = TextEditingController();
+  bool _isLoading = false;
 
   final List<String> _izinList = [
     "Izin Sakit",
@@ -20,6 +23,43 @@ class _PermohonanIzinPageState extends State<PermohonanIzinPage> {
     "Izin Menikah",
     "Izin Melahirkan"
   ];
+
+  Future<void> _handleUploadIzin() async {
+    setState(() => _isLoading = true);
+
+    List<String> formattedDates = _selectedDates
+        .map((date) => DateFormat('yyyy-MM-dd').format(date))
+        .toList();
+
+    final result = await AttendanceService.submitIzin(
+      jenisIzin: _jenisIzin!,
+      tanggalIzin: formattedDates,
+      alasan: _alasanController.text,
+      fileNama: _uploadedFileName,
+    );
+
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    if (result['success'] == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Izin Berhasil Diajukan!'),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      Navigator.pop(context);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result['message'] ?? 'Gagal mengajukan izin'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
 
   String _getDokumenHint() {
     switch (_jenisIzin) {
@@ -39,11 +79,12 @@ class _PermohonanIzinPageState extends State<PermohonanIzinPage> {
           builder: (context, setStateDialog) {
             return AlertDialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              title: const Text("Pilih Tanggal Izin", style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 18)),
+              title: const Text("Pilih Tanggal Izin",
+                  style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 18)),
               content: SizedBox(
                 width: double.maxFinite,
                 child: TableCalendar(
-                  firstDay: DateTime.now(), 
+                  firstDay: DateTime.now(),
                   lastDay: DateTime(DateTime.now().year + 1),
                   focusedDay: _selectedDates.isNotEmpty ? _selectedDates.last : DateTime.now(),
                   selectedDayPredicate: (day) {
@@ -57,12 +98,13 @@ class _PermohonanIzinPageState extends State<PermohonanIzinPage> {
                         _selectedDates.add(selectedDay);
                       }
                     });
-                    setState(() {}); 
+                    setState(() {});
                   },
-                  headerStyle: const HeaderStyle(formatButtonVisible: false, titleCentered: true),
-                  calendarStyle: const CalendarStyle(
-                    selectedDecoration: BoxDecoration(color: Color(0xFF2854C6), shape: BoxShape.circle),
-                    todayDecoration: BoxDecoration(color: Colors.blueGrey, shape: BoxShape.circle),
+                  // FIX: hapus const
+                  headerStyle: HeaderStyle(formatButtonVisible: false, titleCentered: true),
+                  calendarStyle: CalendarStyle(
+                    selectedDecoration: const BoxDecoration(color: Color(0xFF2854C6), shape: BoxShape.circle),
+                    todayDecoration: const BoxDecoration(color: Colors.blueGrey, shape: BoxShape.circle),
                   ),
                 ),
               ),
@@ -73,7 +115,8 @@ class _PermohonanIzinPageState extends State<PermohonanIzinPage> {
                     setState(() {});
                     Navigator.pop(context);
                   },
-                  child: const Text("SIMPAN", style: TextStyle(color: Color(0xFF2854C6), fontWeight: FontWeight.bold)),
+                  child: const Text("SIMPAN",
+                      style: TextStyle(color: Color(0xFF2854C6), fontWeight: FontWeight.bold)),
                 )
               ],
             );
@@ -90,10 +133,10 @@ class _PermohonanIzinPageState extends State<PermohonanIzinPage> {
   }
 
   bool _isFormValid() {
-    return _jenisIzin != null && 
-           _selectedDates.isNotEmpty && 
-           _alasanController.text.length >= 5 && 
-           _uploadedFileName != null;
+    return _jenisIzin != null &&
+        _selectedDates.isNotEmpty &&
+        _alasanController.text.length >= 5 &&
+        _uploadedFileName != null;
   }
 
   @override
@@ -104,7 +147,8 @@ class _PermohonanIzinPageState extends State<PermohonanIzinPage> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.black),
-        title: const Text('Pengajuan Izin', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontFamily: 'Inter')),
+        title: const Text('Pengajuan Izin',
+            style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontFamily: 'Inter')),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -121,17 +165,18 @@ class _PermohonanIzinPageState extends State<PermohonanIzinPage> {
                   isExpanded: true,
                   hint: const Text('Pilih jenis Izin'),
                   value: _jenisIzin,
-                  items: _izinList.map((String value) => DropdownMenuItem<String>(value: value, child: Text(value))).toList(),
-                  onChanged: (newValue) => setState(() => _jenisIzin = newValue),
+                  items: _izinList
+                      .map((String value) => DropdownMenuItem<String>(value: value, child: Text(value)))
+                      .toList(),
+                  onChanged: _isLoading ? null : (newValue) => setState(() => _jenisIzin = newValue),
                 ),
               ),
             ),
             const SizedBox(height: 20),
-
             const Text('Tanggal Izin', style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             GestureDetector(
-              onTap: _showMultiDatePicker,
+              onTap: _isLoading ? null : _showMultiDatePicker,
               child: Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
@@ -145,29 +190,28 @@ class _PermohonanIzinPageState extends State<PermohonanIzinPage> {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    // --- INI BAGIAN YANG SUDAH DIPERBAIKI ---
                     const Icon(Icons.calendar_month, color: Colors.blueGrey, size: 24),
                   ],
                 ),
               ),
             ),
             const SizedBox(height: 20),
-
             const Text('Alasan Lengkap', style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             TextField(
               controller: _alasanController,
-              onChanged: (value) => setState(() {}), 
+              readOnly: _isLoading,
+              onChanged: (value) => setState(() {}),
               maxLines: 3,
               decoration: InputDecoration(
                 hintText: 'Tulis lengkap alasan izin...',
                 filled: true,
                 fillColor: Colors.white,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
               ),
             ),
             const SizedBox(height: 20),
-
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
@@ -182,11 +226,14 @@ class _PermohonanIzinPageState extends State<PermohonanIzinPage> {
                     ],
                   ),
                   const SizedBox(height: 4),
-                  const Text('Tambahkan dokumen Anda di sini', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  const Text('Tambahkan dokumen Anda di sini',
+                      style: TextStyle(color: Colors.grey, fontSize: 12)),
                   const SizedBox(height: 16),
-
                   GestureDetector(
-                    onTap: () => setState(() => _uploadedFileName = "Surat_Izin_$_jenisIzin.jpg"),
+                    onTap: _isLoading
+                        ? null
+                        : () => setState(() => _uploadedFileName =
+                            "Surat_Izin_${_jenisIzin?.replaceAll(' ', '_')}.jpg"),
                     child: Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(vertical: 24),
@@ -195,48 +242,60 @@ class _PermohonanIzinPageState extends State<PermohonanIzinPage> {
                         border: Border.all(color: Colors.blue.shade200),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Column(
+                      child: const Column(
                         children: [
-                          const Icon(Icons.cloud_upload_outlined, color: Colors.blue, size: 32),
-                          const SizedBox(height: 8),
-                          const Text('Tarik file Anda atau telusuri', style: TextStyle(color: Colors.blue, fontSize: 12)),
-                          const SizedBox(height: 4),
-                          const Text('Ukuran maksimal 10 MB', style: TextStyle(color: Colors.grey, fontSize: 10)),
+                          Icon(Icons.cloud_upload_outlined, color: Colors.blue, size: 32),
+                          SizedBox(height: 8),
+                          Text('Tarik file Anda atau telusuri',
+                              style: TextStyle(color: Colors.blue, fontSize: 12)),
+                          SizedBox(height: 4),
+                          Text('Ukuran maksimal 10 MB',
+                              style: TextStyle(color: Colors.grey, fontSize: 10)),
                         ],
                       ),
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Text(_getDokumenHint(), style: const TextStyle(color: Colors.redAccent, fontSize: 11, fontStyle: FontStyle.italic)),
-
+                  Text(_getDokumenHint(),
+                      style: const TextStyle(
+                          color: Colors.redAccent, fontSize: 11, fontStyle: FontStyle.italic)),
                   const SizedBox(height: 20),
-                  
                   if (_uploadedFileName != null)
                     Container(
                       padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
+                      decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(8)),
                       child: Row(
                         children: [
                           Container(
                             padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(color: Colors.blue.shade100, borderRadius: BorderRadius.circular(4)),
-                            child: const Text('JPG', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 10)),
+                            decoration: BoxDecoration(
+                                color: Colors.blue.shade100, borderRadius: BorderRadius.circular(4)),
+                            child: const Text('JPG',
+                                style: TextStyle(
+                                    color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 10)),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(_uploadedFileName!, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                                const Text('500kb', style: TextStyle(color: Colors.grey, fontSize: 10)),
+                                Text(_uploadedFileName!,
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                const Text('500kb',
+                                    style: TextStyle(color: Colors.grey, fontSize: 10)),
                                 const SizedBox(height: 4),
-                                LinearProgressIndicator(value: 1.0, backgroundColor: Colors.grey.shade200, color: Colors.blue),
+                                LinearProgressIndicator(
+                                    value: 1.0,
+                                    backgroundColor: Colors.grey.shade200,
+                                    color: Colors.blue),
                               ],
                             ),
                           ),
                           const SizedBox(width: 12),
                           GestureDetector(
-                            onTap: () => setState(() => _uploadedFileName = null),
+                            onTap: _isLoading ? null : () => setState(() => _uploadedFileName = null),
                             child: const Icon(Icons.cancel_outlined, color: Colors.grey, size: 20),
                           )
                         ],
@@ -246,21 +305,24 @@ class _PermohonanIzinPageState extends State<PermohonanIzinPage> {
               ),
             ),
             const SizedBox(height: 40),
-
             SizedBox(
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed: _isFormValid() ? () {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Izin Berhasil Diajukan!'), backgroundColor: Colors.green));
-                  Navigator.pop(context);
-                } : null, 
+                onPressed: (_isFormValid() && !_isLoading) ? _handleUploadIzin : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF2854C6),
                   disabledBackgroundColor: Colors.grey.shade300,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                child: const Text('SUBMIT', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                child: _isLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                      )
+                    : const Text('SUBMIT',
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               ),
             ),
           ],

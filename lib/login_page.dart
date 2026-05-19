@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'register_page.dart';
 import 'home_page.dart';
+import 'main_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'services/auth_service.dart'; // Memanggil Service
 import 'forgot_password_page.dart';
@@ -63,21 +64,21 @@ class _LoginPageState extends State<LoginPage> {
       final prefs = await SharedPreferences.getInstance();
 
       // Simpan token dan data user ke lokal (SharedPreferences)
-      await prefs.setString('auth_token', result['token']);
-      await prefs.setInt('user_id', result['user']['id']);
-      await prefs.setString('user_name', result['user']['nama_lengkap']);
+     await prefs.setString('auth_token', result['token'] ?? '');
+await prefs.setInt('user_id', result['user']['id'] ?? 0);
+await prefs.setString('user_name', result['user']['data_karyawan']?['nama_lengkap'] ?? 'Karyawan');
 
       _showSnackBar(
-        'Selamat Datang, ${result['user']['nama_lengkap']}!',
+        'Selamat Datang, ${result['user']?['nama_lengkap']}!',
         Colors.green,
       );
 
       // Pindah ke HomePage
       Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (context) => const HomePage()),
-        (route) => false,
-      );
+      context,
+      MaterialPageRoute(builder: (context) => const MainPage()),
+      (Route<dynamic> route) => false,
+);
     } else {
       // Tampilkan pesan error yang dikirim oleh AuthService/Laravel
       _showSnackBar(
