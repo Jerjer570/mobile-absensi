@@ -21,17 +21,11 @@ class ApiConstants {
   // PRESENCE
   // =====================================================
 
-  static const String punchIn =
-      '$baseUrl/PresenceController/punch-in';
-
-  static const String punchOut =
-      '$baseUrl/PresenceController/punch-out';
-
-  static const String koreksiAbsen = 
-      "$baseUrl/attendance/correction";
-
-  static const String permohonanIzin = 
-      "$baseUrl/attendance/leave";
+static const String punchIn  = '$baseUrl/absensi';
+static const String punchOut = '$baseUrl/absensi';
+static const String koreksiAbsen = '$baseUrl/koreksi-absen';
+static const String permohonanIzin = '$baseUrl/pengajuan-izin';
+static const String history = '$baseUrl/absensi';
 
   // =====================================================
   // PROFILE
