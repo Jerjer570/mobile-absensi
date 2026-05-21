@@ -256,11 +256,11 @@ class _RegisterPageState extends State<RegisterPage> {
               ),
               items: const [
                 DropdownMenuItem(
-                  value: "L",
+                  value: "laki-laki",
                   child: Text("Laki-laki"),
                 ),
                 DropdownMenuItem(
-                  value: "P",
+                  value: "perempuan",
                   child: Text("Perempuan"),
                 ),
               ],

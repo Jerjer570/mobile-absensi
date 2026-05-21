@@ -6,24 +6,16 @@ class ApiConstants {
   // BASE URL
   // =====================================================
 
-  static const String baseUrl =
-      'http://10.208.225.65:8000/api';
+  static const String baseUrl = 'http://localhost:8000/api';
 
   // =====================================================
   // AUTH
   // =====================================================
 
-  static const String register =
-      '$baseUrl/register';
-
-  static const String login =
-      '$baseUrl/login';
-
-  static const String forgotPassword =
-      '$baseUrl/forgot-password';
-
-  static const String newPassword =
-      '$baseUrl/password/reset';
+  static const String register = '$baseUrl/storeUserWithKaryawan';
+  static const String login = '$baseUrl/login';
+  static const String forgotPassword = '$baseUrl/forgot-password';
+  static const String newPassword = '$baseUrl/password/reset';
 
   // =====================================================
   // PRESENCE
