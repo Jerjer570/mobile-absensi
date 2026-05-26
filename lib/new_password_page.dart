@@ -1,10 +1,19 @@
 import 'package:flutter/material.dart';
-import 'dart:async'; // Dibutuhkan untuk fitur timer (Future.delayed)
+import 'dart:async';
+import 'dart:convert'; // Ditambahkan untuk jsonEncode
 import 'package:http/http.dart' as http;
-import 'services/api_constants.dart'; // Pastikan path ini sesuai dengan struktur proyek Anda
+import 'services/api_constants.dart'; 
 
 class NewPasswordPage extends StatefulWidget {
-  const NewPasswordPage({super.key});
+  // --- SEPADAN DENGAN LARAVEL: Menerima email dan otp dari halaman sebelumnya ---
+  final String email;
+  final String otp;
+
+  const NewPasswordPage({
+    super.key, 
+    required this.email, 
+    required this.otp,
+  });
 
   @override
   State<NewPasswordPage> createState() => _NewPasswordPageState();
@@ -12,6 +21,7 @@ class NewPasswordPage extends StatefulWidget {
 
 class _NewPasswordPageState extends State<NewPasswordPage> {
   bool _isPasswordVisible = false;
+  bool _isLoading = false; // Menghindari multi-klik saat request berlangsung
 
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
@@ -23,8 +33,7 @@ class _NewPasswordPageState extends State<NewPasswordPage> {
     super.dispose();
   }
 
-  // Widget khusus untuk membuat kolom input password berulang
-  Widget _buildPasswordField(TextEditingController controller) {
+  Widget _buildPasswordField(TextEditingController controller, String hint) {
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFFF3F4F6), 
@@ -42,7 +51,7 @@ class _NewPasswordPageState extends State<NewPasswordPage> {
           fontWeight: FontWeight.bold,
         ),
         decoration: InputDecoration(
-          hintText: '********', 
+          hintText: hint, 
           hintStyle: const TextStyle(
             color: Colors.black38,
             letterSpacing: 3.0,
@@ -64,56 +73,44 @@ class _NewPasswordPageState extends State<NewPasswordPage> {
     );
   }
 
-  // --- FUNGSI MEMUNCULKAN POP-UP SELAMAT (VERSI FIX POSISI BUBBLE) ---
   void _showSuccessDialog() {
     showDialog(
       context: context,
-      barrierDismissible: false, // User tidak bisa menutup dialog dengan klik di luar
+      barrierDismissible: false, 
       builder: (BuildContext context) {
         return Dialog(
-          backgroundColor: Colors.transparent, // Membuat latar dialog transparan agar container utama terlihat melengkung sempurna
+          backgroundColor: Colors.transparent, 
           elevation: 0, 
           child: Container(
             width: double.infinity,
-            height: 380, // Kotak memanjang ke bawah sesuai Figma
+            height: 380, 
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(30), // Kotak dialog melengkung
+              borderRadius: BorderRadius.circular(30), 
             ),
-            // Menggunakan Column agar konten rata tengah secara vertikal
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center, // Semua isi Column di tengah
+              mainAxisAlignment: MainAxisAlignment.center, 
               children: [
-                // --------------------------------------------------------------------------------------
-                // --- UPDATE: MENYATUKAN BUBBLES DAN VERIFIED DI TENGAH (FIX OFF SITE) ---
-                // --------------------------------------------------------------------------------------
                 Stack(
-                  alignment: Alignment.center, // Memaksa semua gambar di Stack ini bertumpuk tepat di tengah
+                  alignment: Alignment.center, 
                   children: [
-                    // Lapisan 1: Bubbles.png (Background dekorasi)
                     Image.asset(
-                      'assets/images/Bubbles.png', // Gambar bubbles custom
-                      width: 140, // <-- Ukuran diperkecil agar radius pas di area Verified
+                      'assets/images/Bubbles.png', 
+                      width: 140, 
                       height: 140,
                       fit: BoxFit.contain,
                       errorBuilder: (context, error, stackTrace) => const SizedBox(), 
                     ),
-
-                    // Lapisan 2: Verified.png (Tameng centang - Di depan bubbles)
                     Image.asset(
-                      'assets/images/Verified.png', // Gambar tameng custom
-                      width: 100, // Ukuran ideal agar tameng terlihat jelas
+                      'assets/images/Verified.png', 
+                      width: 100, 
                       height: 100,
                       fit: BoxFit.contain,
                       errorBuilder: (context, error, stackTrace) => const Icon(Icons.verified, size: 80, color: Colors.blue),
                     ),
                   ],
                 ),
-                // --------------------------------------------------------------------------------------
-                // --------------------------------------------------------------------------------------
-
-                const SizedBox(height: 30), // Jarak ke judul
-
+                const SizedBox(height: 30), 
                 const Text(
                   'Selamat !',
                   style: TextStyle(
@@ -129,13 +126,13 @@ class _NewPasswordPageState extends State<NewPasswordPage> {
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontFamily: 'plus jakarta sans',
-                     fontWeight: FontWeight.w400,
+                    fontWeight: FontWeight.w400,
                     fontSize: 16,
                     color: Colors.black87,
                     height: 1.5,
                   ),
                 ),
-                const SizedBox(height: 10), // Memberi sedikit ruang di bawah agar tidak terlalu padat
+                const SizedBox(height: 10), 
               ],
             ),
           ),
@@ -143,10 +140,8 @@ class _NewPasswordPageState extends State<NewPasswordPage> {
       },
     );
 
-    // --- LOGIKA MUNDUR OTOMATIS SETELAH 3 DETIK ---
     Future.delayed(const Duration(seconds: 3), () {
-      if (!mounted) return; // <--- TAMBAHKAN BARIS PENGAMAN INI
-
+      if (!mounted) return; 
       if (Navigator.canPop(context)) {
         Navigator.of(context).pop();
       }
@@ -154,7 +149,6 @@ class _NewPasswordPageState extends State<NewPasswordPage> {
     });
   }
 
-  // --- FUNGSI MENAMPILKAN PERINGATAN MERAH ---
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -177,7 +171,6 @@ class _NewPasswordPageState extends State<NewPasswordPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -188,15 +181,9 @@ class _NewPasswordPageState extends State<NewPasswordPage> {
         centerTitle: true,
         title: const Text(
           'Lupa Password',
-          style: TextStyle(
-            fontFamily: 'Inter',
-            color: Colors.black,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(fontFamily: 'Inter', color: Colors.black, fontSize: 16, fontWeight: FontWeight.bold),
         ),
       ),
-
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -204,27 +191,17 @@ class _NewPasswordPageState extends State<NewPasswordPage> {
             crossAxisAlignment: CrossAxisAlignment.start, 
             children: [
               const SizedBox(height: 30),
-
               const Center(
                 child: Text(
                   'Buat Kata Sandi Baru',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
+                  style: TextStyle(fontFamily: 'Inter', fontSize: 28, fontWeight: FontWeight.bold, color: Colors.black),
                 ),
               ),
               
               const SizedBox(height: 40),
-
-              _buildPasswordField(_passwordController),
-              
+              _buildPasswordField(_passwordController, 'Kata Sandi Baru'),
               const SizedBox(height: 20),
-
-              _buildPasswordField(_confirmPasswordController),
-
+              _buildPasswordField(_confirmPasswordController, 'Ulangi Kata Sandi'),
               const SizedBox(height: 12),
 
               Padding(
@@ -252,29 +229,19 @@ class _NewPasswordPageState extends State<NewPasswordPage> {
                     const SizedBox(width: 12),
                     const Text(
                       'Tampilkan Password',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        color: Colors.black87,
-                        fontSize: 14,
-                      ),
+                      style: TextStyle(fontFamily: 'Inter', color: Colors.black87, fontSize: 14),
                     ),
                   ],
                 ),
               ),
 
               const Spacer(),
-
-              Row(
+              const Row(
                 mainAxisAlignment: MainAxisAlignment.end,
-                children: const [
+                children: [
                   Text(
                     '2 of 2',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      color: Color(0xFF1E3A8A), 
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: TextStyle(fontFamily: 'Inter', color: Color(0xFF1E3A8A), fontSize: 14, fontWeight: FontWeight.w600),
                   ),
                 ],
               ),
@@ -288,65 +255,80 @@ class _NewPasswordPageState extends State<NewPasswordPage> {
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
-
               const SizedBox(height: 20),
 
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-               onPressed: () async {
-                      String pass1 = _passwordController.text;
-                      String pass2 = _confirmPasswordController.text;
+                  onPressed: _isLoading 
+                    ? null 
+                    : () async {
+                        String pass1 = _passwordController.text;
+                        String pass2 = _confirmPasswordController.text;
 
-                      // 1. Validasi lokal
-                      if (pass1.isEmpty || pass2.isEmpty) {
-                        _showError("Kolom password tidak boleh kosong!");
-                      } else if (pass1 != pass2) {
-                        _showError("Kata sandi tidak cocok!");
-                      } else if (pass1.length < 6) {
-                        _showError("Minimal 6 karakter!");
-                      } else {
-                        // 2. Kirim ke API
-                        try {
-                          final response = await http.post(
-                            Uri.parse(ApiConstants.newPassword), // Pastikan URL ini ada di file api_constants.dart
-                            headers: {'Accept': 'application/json'},
-                            body: {
-                              'password': pass1,
-                              'password_confirmation': pass2,
-                              // Jika backend Anda butuh token atau email, tambahkan di sini
-                            },
-                          );
+                        // 1. Validasi lokal (Disamakan dengan aturan Laravel min:8)
+                        if (pass1.isEmpty || pass2.isEmpty) {
+                          _showError("Kolom password tidak boleh kosong!");
+                        } else if (pass1 != pass2) {
+                          _showError("Kata sandi tidak cocok!");
+                        } else if (pass1.length < 8) {
+                          _showError("Password minimal harus 8 karakter!");
+                        } else {
+                          setState(() {
+                            _isLoading = true;
+                          });
 
-                          if (response.statusCode == 200) {
-                            _showSuccessDialog(); // Tampilkan popup sukses jika berhasil
-                          } else {
-                            _showError("Gagal mereset password: ${response.statusCode}");
+                          // 2. Kirim ke API dengan struktur JSON yang tepat sesuai Laravel
+                          try {
+                            final response = await http.post(
+                              Uri.parse(ApiConstants.newPassword),
+                              headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                              },
+                              body: jsonEncode({
+                                'email': widget.email,
+                                'otp': int.tryParse(widget.otp) ?? widget.otp, // Konversi ke numeric sesuai validasi Laravel
+                                'password': pass1,
+                                'password_confirmation': pass2,
+                              }),
+                            );
+
+                            final responseData = jsonDecode(response.body);
+
+                            if (response.statusCode == 200 && responseData['success'] == true) {
+                              _showSuccessDialog();
+                            } else {
+                              // Mengambil message error langsung dari response Laravel jika ada
+                              String errorMsg = responseData['message'] ?? "Gagal mereset password.";
+                              _showError(errorMsg);
+                            }
+                          } catch (e) {
+                            _showError("Terjadi kesalahan koneksi!");
+                          } finally {
+                            setState(() {
+                              _isLoading = false;
+                            });
                           }
-                        } catch (e) {
-                          _showError("Terjadi kesalahan koneksi!");
                         }
-                      }
-                    },
+                      },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.black,
                     padding: const EdgeInsets.symmetric(vertical: 18),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                   ),
-                  child: const Text(
-                    'Verify',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  child: _isLoading 
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        )
+                      : const Text(
+                          'Verify',
+                          style: TextStyle(fontFamily: 'Inter', color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
                 ),
               ),
-              
               const SizedBox(height: 30),
             ],
           ),

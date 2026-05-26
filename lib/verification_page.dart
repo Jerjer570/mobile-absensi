@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'new_password_page.dart';
+import 'services/auth_service.dart'; 
 
 class VerificationPage extends StatefulWidget {
   final String email;
@@ -11,33 +12,31 @@ class VerificationPage extends StatefulWidget {
 }
 
 class _VerificationPageState extends State<VerificationPage> {
-  // --- FITUR BARU: Variabel untuk menyimpan 4 digit OTP ---
-  final List<String> _otpValues = ["", "", "", ""];
+  final List<String> _otpValues = ["", "", "", "", "", ""];
+  
+  bool _isLoading = false; 
 
-  // Widget khusus untuk membuat kotak OTP (Ditambah parameter index)
   Widget _otpBox(BuildContext context, {required int index, bool first = false, bool last = false}) {
     return SizedBox(
       height: 64,
-      width: 60,
+      width: 48, // Sedikit diperkecil agar pas di layar HP yang lebih ramping (6 kotak)
       child: TextField(
         autofocus: first, 
         onChanged: (value) {
-          // --- Menyimpan angka yang diketik ke dalam List ---
           _otpValues[index] = value;
 
-          // Logika otomatis pindah kotak saat mengetik atau menghapus
           if (value.length == 1 && !last) {
-            FocusScope.of(context).nextFocus(); // Pindah ke kanan
+            FocusScope.of(context).nextFocus(); 
           }
           if (value.isEmpty && !first) {
-            FocusScope.of(context).previousFocus(); // Pindah ke kiri saat dihapus
+            FocusScope.of(context).previousFocus(); 
           }
         },
         keyboardType: TextInputType.number,
         textAlign: TextAlign.center,
         inputFormatters: [
-          LengthLimitingTextInputFormatter(1), // Maksimal 1 angka per kotak
-          FilteringTextInputFormatter.digitsOnly, // Hanya boleh angka
+          LengthLimitingTextInputFormatter(1), 
+          FilteringTextInputFormatter.digitsOnly, 
         ],
         style: const TextStyle(fontFamily: 'Inter', fontSize: 24, fontWeight: FontWeight.bold),
         decoration: InputDecoration(
@@ -55,11 +54,29 @@ class _VerificationPageState extends State<VerificationPage> {
     );
   }
 
+  // Helper widget untuk mempermudah pemanggilan snackbar pesan error/sukses
+  void _showCustomSnackBar(String message, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.w600, fontSize: 14, color: Colors.white),
+        ),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+        elevation: 6,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        margin: const EdgeInsets.only(bottom: 40, left: 24, right: 24),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -70,15 +87,9 @@ class _VerificationPageState extends State<VerificationPage> {
         centerTitle: true, 
         title: const Text(
           'Lupa Password',
-          style: TextStyle(
-            fontFamily: 'Inter',
-            color: Colors.black,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(fontFamily: 'Inter', color: Colors.black, fontSize: 16, fontWeight: FontWeight.bold),
         ),
       ),
-
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -86,180 +97,126 @@ class _VerificationPageState extends State<VerificationPage> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const SizedBox(height: 30),
-
               const Text(
                 'Verifikasi',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
+                style: TextStyle(fontFamily: 'Inter', fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black),
               ),
-              
               const SizedBox(height: 12),
-
-              const Text(
-                'Silakan masukkan kode yang\ntelah kami kirimkan ke email Anda.',
+              Text(
+                'Silakan masukkan kode yang\ntelah kami kirimkan ke ${widget.email}',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.grey,
-                  height: 1.5,
-                ),
+                style: const TextStyle(fontFamily: 'Inter', fontSize: 14, fontWeight: FontWeight.w500, color: Colors.grey, height: 1.5),
               ),
-
               const SizedBox(height: 40),
-
-              // --- MENGHUBUNGKAN KOTAK DENGAN INDEX MEMORI ---
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   _otpBox(context, index: 0, first: true),
                   _otpBox(context, index: 1),
                   _otpBox(context, index: 2),
-                  _otpBox(context, index: 3, last: true),
+                  _otpBox(context, index: 3),
+                  _otpBox(context, index: 4),
+                  _otpBox(context, index: 5, last: true),
                 ],
               ),
-
               const SizedBox(height: 40),
-
               Column(
                 children: [
-                  const Text(
-                    'Tidak Menerima Kode?',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      color: Colors.grey,
-                      fontSize: 14,
-                    ),
-                  ),
+                  const Text('Tidak Menerima Kode?', style: TextStyle(fontFamily: 'Inter', color: Colors.grey, fontSize: 14)),
                   const SizedBox(height: 4),
                   GestureDetector(
-                    onTap: () {
-                      debugPrint("Kirim ulang kode OTP...");
-                    },
+                    onTap: _isLoading ? null : () => debugPrint("Kirim ulang kode OTP..."),
                     child: const Text(
                       'Kirim Ulang Kode?',
-                      style: TextStyle(
-                        fontFamily: 'Inter',
-                        color: Colors.black,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: TextStyle(fontFamily: 'Inter', color: Colors.black, fontSize: 14, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ],
               ),
-
               const Spacer(),
-
-              Row(
+              const Row(
                 mainAxisAlignment: MainAxisAlignment.end,
-                children: const [
+                children: [
                   Text(
                     '1 of 2',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      color: Color(0xFF1E3A8A), 
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: TextStyle(fontFamily: 'Inter', color: Color(0xFF1E3A8A), fontSize: 14, fontWeight: FontWeight.w600),
                   ),
                 ],
               ),
               const SizedBox(height: 10),
-              
               Row(
                 children: [
                   Expanded(
                     child: Container(
                       height: 6,
-                      decoration: BoxDecoration(
-                        color: Colors.black, 
-                        borderRadius: BorderRadius.circular(10),
-                      ),
+                      decoration: BoxDecoration(color: Colors.black, borderRadius: BorderRadius.circular(10)),
                     ),
                   ),
                   const SizedBox(width: 6), 
                   Expanded(
                     child: Container(
                       height: 6,
-                      decoration: BoxDecoration(
-                        color: Colors.black12, 
-                        borderRadius: BorderRadius.circular(10),
-                      ),
+                      decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(10)),
                     ),
                   ),
                 ],
               ),
-
               const SizedBox(height: 20),
 
-              // 6. TOMBOL VERIFY
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
-                    String fullOtp = _otpValues.join(""); 
+                  onPressed: _isLoading 
+                      ? null 
+                      : () async {
+                          String fullOtp = _otpValues.join(""); 
 
-                    if (fullOtp.length < 4) {
-                      // --- ALERT / SNACKBAR YANG DIPERBAGUS ---
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: const Text(
-                            'Mohon isi 4 digit kode verifikasi terlebih dahulu!',
-                            textAlign: TextAlign.center, // Memaksa teks ke tengah
-                            style: TextStyle(
-                              fontFamily: 'Inter',
-                              fontWeight: FontWeight.w600, // Teks sedikit ditebalkan
-                              fontSize: 14,
-                              color: Colors.white,
-                            ),
-                          ),
-                          backgroundColor: const Color(0xFFEF4444), // Merah terang yang elegan (Tailwind Red-500)
-                          behavior: SnackBarBehavior.floating, // Membuat kotak melayang
-                          elevation: 6, // Memberikan efek bayangan jatuh (shadow)
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16), // Memberikan Corner Radius
-                          ),
-                          margin: const EdgeInsets.only(
-                            bottom: 40, // Jarak melayang dari bawah
-                            left: 24,   // Jarak dari pinggir kiri
-                            right: 24,  // Jarak dari pinggir kanan
-                          ),
-                          duration: const Duration(seconds: 3), // Hilang otomatis dalam 3 detik
-                        ),
-                      );
-                      // ----------------------------------------
-                    } else {
-                      Navigator.push(
-                     context,
-                     MaterialPageRoute(builder: (context) => const NewPasswordPage()),
-                    );
-                    }
-                  },
+                          if (fullOtp.length < 6) {
+                            _showCustomSnackBar('Mohon isi 6 digit kode verifikasi terlebih dahulu!', const Color(0xFFEF4444));
+                          } else {
+                            setState(() {
+                              _isLoading = true;
+                            });
+                            final result = await AuthService().verifyOtp(widget.email, fullOtp);
+                            setState(() {
+                              _isLoading = false;
+                            });
+
+                            if (result['success'] == true) {
+                              if (context.mounted) {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => NewPasswordPage(
+                                      email: widget.email, // Mengirim email
+                                      otp: fullOtp,        // Mengirim string kode OTP lengkap (6 digit)
+                                    ),
+                                  ),
+                                );
+                              }
+                            } else {
+                              _showCustomSnackBar(result['message'] ?? 'Terjadi kesalahan.', const Color(0xFFEF4444));
+                            }
+                          }
+                        },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.black,
                     padding: const EdgeInsets.symmetric(vertical: 18),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                   ),
-                  child: const Text(
-                    'Verify',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  // Mengubah teks button menjadi loading spinner kecil saat request diproses
+                  child: _isLoading 
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                        )
+                      : const Text(
+                          'Verify',
+                          style: TextStyle(fontFamily: 'Inter', color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
                 ),
               ),
-              
               const SizedBox(height: 30),
             ],
           ),

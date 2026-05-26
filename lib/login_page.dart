@@ -1,8 +1,9 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'register_page.dart';
-import 'home_page.dart';
 import 'main_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'services/auth_service.dart'; // Memanggil Service
 import 'forgot_password_page.dart';
 
@@ -40,12 +41,29 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
+  Future<String> _getDeviceId() async {
+    DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
+    try {
+      if (Platform.isAndroid) {
+        AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
+        return androidInfo.id;
+      } else if (Platform.isIOS) {
+        IosDeviceInfo iosInfo = await deviceInfo.iosInfo;
+        return iosInfo.identifierForVendor ?? 'unknown_ios';
+      }
+    } catch (e) {
+      print("DEVICE ID ERROR: $e");
+    }
+    return DateTime.now().millisecondsSinceEpoch.toString();
+  }
+
   // =========================================================
   // LOGIC LOGIN (SUDAH DISESUAIKAN KE SERVICE)
   // =========================================================
   Future<void> _loginProcess() async {
     String email = _emailController.text.trim();
     String password = _passwordController.text.trim();
+    String deviceId = await _getDeviceId();
 
     if (email.isEmpty || password.isEmpty) {
       _showSnackBar('Email dan Password wajib diisi!', Colors.red);
@@ -55,7 +73,7 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _isLoading = true);
 
     // MENGGUNAKAN SERVICE (Alur: UI -> Service -> API)
-    final result = await AuthService.login(email, password);
+    final result = await AuthService.login(email:email, password: password, deviceId: deviceId);
 
     if (!mounted) return;
     setState(() => _isLoading = false);
@@ -69,7 +87,7 @@ await prefs.setInt('user_id', result['user']['id'] ?? 0);
 await prefs.setString('user_name', result['user']['data_karyawan']?['nama_lengkap'] ?? 'Karyawan');
 
       _showSnackBar(
-        'Selamat Datang, ${result['user']?['nama_lengkap']}!',
+        'Selamat Datang, ${result['user']?['data_karyawan']?['nama_lengkap'] ?? 'User'}!',
         Colors.green,
       );
 

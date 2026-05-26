@@ -1,273 +1,118 @@
+// lib/services/profile_service.dart
 import 'dart:convert';
 import 'dart:io';
-
-import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import 'api_constants.dart';
 
 class ProfileService {
 
   // =========================================================
-  // PICK IMAGE
+  // GET PROFIL — GET /api/profile/{id}
   // =========================================================
-
-  static Future<File?> pickImage(ImageSource source) async {
+  static Future<Map<String, dynamic>> getProfile() async {
     try {
-      final ImagePicker picker = ImagePicker();
-
-      final XFile? image = await picker.pickImage(
-        source: source,
-        imageQuality: 50,
-      );
-
-      if (image != null) {
-        return File(image.path);
-      }
-
-      return null;
-    } catch (e) {
-      print("Error Pick Image: $e");
-      return null;
-    }
-  }
-
-  // =========================================================
-  // DATE PICKER
-  // =========================================================
-
-  static Future<void> selectDate(
-    BuildContext context,
-    TextEditingController controller,
-  ) async {
-    try {
-      DateTime? picked = await showDatePicker(
-        context: context,
-        initialDate: DateTime(1995, 5, 23),
-        firstDate: DateTime(1970),
-        lastDate: DateTime.now(),
-      );
-
-      if (picked != null) {
-        controller.text =
-        "${picked.day.toString().padLeft(2, '0')}/"
-            "${picked.month.toString().padLeft(2, '0')}/"
-            "${picked.year}";
-      }
-    } catch (e) {
-      print("Error Select Date: $e");
-    }
-  }
-
-  // =========================================================
-  // GENDER PICKER
-  // =========================================================
-
-  static void selectGender(
-    BuildContext context,
-    TextEditingController controller,
-  ) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      useSafeArea: true,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(20),
-        ),
-      ),
-      builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: EdgeInsets.only(
-              bottom: MediaQuery.of(context).padding.bottom + 10,
-              top: 10,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-
-                const Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: Text(
-                    "Pilih Jenis Kelamin",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                    ),
-                  ),
-                ),
-
-                // =========================
-                // LAKI LAKI
-                // =========================
-
-                ListTile(
-                  leading: const Icon(
-                    Icons.male,
-                    color: Colors.blue,
-                  ),
-                  title: const Text("Laki - Laki"),
-                  onTap: () {
-                    controller.text = "Laki - Laki";
-                    Navigator.pop(context);
-                  },
-                ),
-
-                // =========================
-                // PEREMPUAN
-                // =========================
-
-                ListTile(
-                  leading: const Icon(
-                    Icons.female,
-                    color: Colors.pink,
-                  ),
-                  title: const Text("Perempuan"),
-                  onTap: () {
-                    controller.text = "Perempuan";
-                    Navigator.pop(context);
-                  },
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  // =========================================================
-  // UPDATE PROFILE API
-  // =========================================================
-
-  static Future<bool> updateProfile({
-    required String nama,
-    required String email,
-    required String noHp,
-    required String alamat,
-    required String tanggalLahir,
-    required String jenisKelamin,
-    File? imageFile,
-  }) async {
-    try {
-
-      // =========================
-      // AMBIL TOKEN & USER ID
-      // =========================
-
-      final prefs = await SharedPreferences.getInstance();
-
-      final token = prefs.getString('auth_token');
+      final prefs  = await SharedPreferences.getInstance();
+      final token  = prefs.getString('auth_token');
       final userId = prefs.getInt('user_id');
 
       if (token == null || userId == null) {
-        print("Token atau User ID tidak ditemukan");
-        return false;
+        return {'success': false, 'message': 'Session tidak ditemukan. Silakan login ulang.'};
       }
 
-      // =========================
-      // URL API
-      // =========================
-
-      final url = Uri.parse(
-        "${ApiConstants.updateProfile}/$userId",
+      final response = await http.get(
+        Uri.parse(ApiConstants.getProfile(userId)),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Accept'       : 'application/json',
+        },
       );
 
-      // =========================
-      // MULTIPART REQUEST
-      // =========================
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
 
-      var request = http.MultipartRequest(
-        'POST',
-        url,
-      );
+      if (response.statusCode == 200) {
+        final profileData = data['data'] as Map<String, dynamic>;
 
-      request.headers['Authorization'] = 'Bearer $token';
-      request.headers['Accept'] = 'application/json';
+        // Cache nama ke SharedPreferences
+        await prefs.setString('user_name', profileData['nama_lengkap'] ?? '');
 
-      // =========================
-      // FIELD DATA
-      // =========================
-
-      request.fields['email'] = email;
-      request.fields['nama_lengkap'] = nama;
-      request.fields['no_hp'] = noHp;
-      request.fields['alamat'] = alamat;
-      request.fields['tanggal_lahir'] = tanggalLahir;
-      request.fields['jenis_kelamin'] = jenisKelamin;
-      request.fields['device_id'] = 'android_001';
-
-      // =========================
-      // UPLOAD IMAGE
-      // =========================
-
-      if (imageFile != null) {
-        request.files.add(
-          await http.MultipartFile.fromPath(
-            'foto_profile',
-            imageFile.path,
-          ),
-        );
+        return {'success': true, 'data': profileData};
       }
 
-      // =========================
-      // SEND REQUEST
-      // =========================
-
-      var response = await request.send();
-
-      var res = await http.Response.fromStream(response);
-
-      final data = jsonDecode(res.body);
-
-      print("STATUS CODE: ${response.statusCode}");
-      print("RESPONSE: $data");
-
-      return response.statusCode == 200;
-
+      return {'success': false, 'message': data['message'] ?? 'Gagal memuat profil'};
     } catch (e) {
-      print("Error Update Profile: $e");
-      return false;
+      return {'success': false, 'message': 'Gagal terhubung ke server'};
     }
   }
 
   // =========================================================
-  // HANDLE SAVE
+  // UPDATE PROFIL — POST /api/profile/{id} (multipart/form-data)
   // =========================================================
-
-  static Future<void> handleSave(
-    BuildContext context, {
-    required String nama,
+  static Future<Map<String, dynamic>> updateProfile({
+    required String namaLengkap,
     required String email,
     required String noHp,
     required String alamat,
     required String tanggalLahir,
     required String jenisKelamin,
-    File? imageFile,
+    String?  password,
+    File?    foto,
   }) async {
+    try {
+      final prefs  = await SharedPreferences.getInstance();
+      final token  = prefs.getString('auth_token');
+      final userId = prefs.getInt('user_id');
 
-    bool success = await updateProfile(
-      nama: nama,
-      email: email,
-      noHp: noHp,
-      alamat: alamat,
-      tanggalLahir: tanggalLahir,
-      jenisKelamin: jenisKelamin,
-      imageFile: imageFile,
-    );
+      if (token == null || userId == null) {
+        return {'success': false, 'message': 'Session tidak ditemukan. Silakan login ulang.'};
+      }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          success
-              ? "Profile Updated Successfully!"
-              : "Failed Update Profile!",
-        ),
-      ),
-    );
+      final url     = Uri.parse(ApiConstants.updateProfileUrl(userId));
+      var   request = http.MultipartRequest('POST', url);
+
+      request.headers['Authorization'] = 'Bearer $token';
+      request.headers['Accept']        = 'application/json';
+
+      request.fields['email']         = email;
+      request.fields['nama_lengkap']  = namaLengkap;
+      request.fields['no_hp']         = noHp;
+      request.fields['alamat']        = alamat;
+      request.fields['tanggal_lahir'] = tanggalLahir;
+      request.fields['jenis_kelamin'] = jenisKelamin;
+
+      if (password != null && password.isNotEmpty) {
+        request.fields['password'] = password;
+      }
+
+      if (foto != null) {
+        request.files.add(await http.MultipartFile.fromPath('foto', foto.path));
+      }
+
+      final streamed  = await request.send();
+      final response  = await http.Response.fromStream(streamed);
+      final data      = jsonDecode(response.body) as Map<String, dynamic>;
+
+      if (response.statusCode == 200) {
+        // Update cache
+        await prefs.setString('user_name', namaLengkap);
+
+        return {
+          'success': true,
+          'message': data['message'] ?? 'Profil berhasil diperbarui',
+          'data'   : data['data'],
+        };
+      }
+
+      if (response.statusCode == 422 && data['errors'] != null) {
+        final errors = data['errors'] as Map<String, dynamic>;
+        final first  = errors.values.first;
+        final msg    = first is List ? first.first : first.toString();
+        return {'success': false, 'message': msg};
+      }
+
+      return {'success': false, 'message': data['message'] ?? 'Gagal memperbarui profil'};
+    } catch (e) {
+      return {'success': false, 'message': 'Terjadi kesalahan koneksi'};
+    }
   }
 }

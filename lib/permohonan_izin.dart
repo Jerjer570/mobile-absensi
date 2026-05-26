@@ -12,30 +12,37 @@ class PermohonanIzinPage extends StatefulWidget {
 
 class _PermohonanIzinPageState extends State<PermohonanIzinPage> {
   String? _jenisIzin;
-  List<DateTime> _selectedDates = [];
-  String? _uploadedFileName;
+  final List<DateTime> _selectedDates = [];
   final TextEditingController _alasanController = TextEditingController();
   bool _isLoading = false;
 
   final List<String> _izinList = [
-    "Izin Sakit",
-    "Izin Alasan Penting",
-    "Izin Menikah",
-    "Izin Melahirkan"
+    'Izin-Sakit',
+    'Izin-Cuti',
+    'Izin-Lainnya',
   ];
 
-  Future<void> _handleUploadIzin() async {
+  @override
+  void dispose() {
+    _alasanController.dispose();
+    super.dispose();
+  }
+
+  // =========================================================
+  // SUBMIT IZIN
+  // =========================================================
+  Future<void> _handleSubmitIzin() async {
+    if (!_isFormValid()) return;
     setState(() => _isLoading = true);
 
-    List<String> formattedDates = _selectedDates
-        .map((date) => DateFormat('yyyy-MM-dd').format(date))
+    final List<String> formattedDates = _selectedDates
+        .map((d) => DateFormat('yyyy-MM-dd').format(d))
         .toList();
 
     final result = await AttendanceService.submitIzin(
-      jenisIzin: _jenisIzin!,
-      tanggalIzin: formattedDates,
-      alasan: _alasanController.text,
-      fileNama: _uploadedFileName,
+      jenisIzin    : _jenisIzin!,
+      tanggalIzin  : formattedDates,
+      alasan       : _alasanController.text.trim(),
     );
 
     if (!mounted) return;
@@ -43,8 +50,8 @@ class _PermohonanIzinPageState extends State<PermohonanIzinPage> {
 
     if (result['success'] == true) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Izin Berhasil Diajukan!'),
+        SnackBar(
+          content: Text(result['message'] ?? 'Izin berhasil diajukan!'),
           backgroundColor: Colors.green,
           behavior: SnackBarBehavior.floating,
         ),
@@ -61,16 +68,9 @@ class _PermohonanIzinPageState extends State<PermohonanIzinPage> {
     }
   }
 
-  String _getDokumenHint() {
-    switch (_jenisIzin) {
-      case "Izin Sakit": return "Wajib upload Surat Keterangan Dokter";
-      case "Izin Alasan Penting": return "Upload bukti medis/kepolisian/kelurahan";
-      case "Izin Menikah": return "Upload foto undangan";
-      case "Izin Melahirkan": return "Upload surat keterangan HPL bidan/dokter";
-      default: return "Hanya mendukung file .jpg, .png, .pdf";
-    }
-  }
-
+  // =========================================================
+  // MULTI DATE PICKER
+  // =========================================================
   Future<void> _showMultiDatePicker() async {
     await showDialog(
       context: context,
@@ -79,7 +79,7 @@ class _PermohonanIzinPageState extends State<PermohonanIzinPage> {
           builder: (context, setStateDialog) {
             return AlertDialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              title: const Text("Pilih Tanggal Izin",
+              title: const Text('Pilih Tanggal Izin',
                   style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 18)),
               content: SizedBox(
                 width: double.maxFinite,
@@ -87,9 +87,8 @@ class _PermohonanIzinPageState extends State<PermohonanIzinPage> {
                   firstDay: DateTime.now(),
                   lastDay: DateTime(DateTime.now().year + 1),
                   focusedDay: _selectedDates.isNotEmpty ? _selectedDates.last : DateTime.now(),
-                  selectedDayPredicate: (day) {
-                    return _selectedDates.any((selectedDate) => isSameDay(selectedDate, day));
-                  },
+                  selectedDayPredicate: (day) =>
+                      _selectedDates.any((d) => isSameDay(d, day)),
                   onDaySelected: (selectedDay, focusedDay) {
                     setStateDialog(() {
                       if (_selectedDates.any((d) => isSameDay(d, selectedDay))) {
@@ -100,11 +99,10 @@ class _PermohonanIzinPageState extends State<PermohonanIzinPage> {
                     });
                     setState(() {});
                   },
-                  // FIX: hapus const
-                  headerStyle: HeaderStyle(formatButtonVisible: false, titleCentered: true),
-                  calendarStyle: CalendarStyle(
-                    selectedDecoration: const BoxDecoration(color: Color(0xFF2854C6), shape: BoxShape.circle),
-                    todayDecoration: const BoxDecoration(color: Colors.blueGrey, shape: BoxShape.circle),
+                  headerStyle: const HeaderStyle(formatButtonVisible: false, titleCentered: true),
+                  calendarStyle: const CalendarStyle(
+                    selectedDecoration: BoxDecoration(color: Color(0xFF2854C6), shape: BoxShape.circle),
+                    todayDecoration    : BoxDecoration(color: Colors.blueGrey, shape: BoxShape.circle),
                   ),
                 ),
               ),
@@ -115,9 +113,9 @@ class _PermohonanIzinPageState extends State<PermohonanIzinPage> {
                     setState(() {});
                     Navigator.pop(context);
                   },
-                  child: const Text("SIMPAN",
+                  child: const Text('SIMPAN',
                       style: TextStyle(color: Color(0xFF2854C6), fontWeight: FontWeight.bold)),
-                )
+                ),
               ],
             );
           },
@@ -127,25 +125,26 @@ class _PermohonanIzinPageState extends State<PermohonanIzinPage> {
   }
 
   String _getFormattedDates() {
-    if (_selectedDates.isEmpty) return "Pilih Tanggal Izin";
-    List<String> dateStrings = _selectedDates.map((d) => "${d.day}/${d.month}").toList();
-    return dateStrings.join(", ");
+    if (_selectedDates.isEmpty) return 'Pilih Tanggal Izin';
+    _selectedDates.sort((a, b) => a.compareTo(b));
+    return _selectedDates.map((d) => DateFormat('dd/MM').format(d)).join(', ');
   }
 
   bool _isFormValid() {
     return _jenisIzin != null &&
         _selectedDates.isNotEmpty &&
-        _alasanController.text.length >= 5 &&
-        _uploadedFileName != null;
+        _alasanController.text.trim().length >= 5;
   }
 
+  // =========================================================
+  // UI
+  // =========================================================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
+        backgroundColor: Colors.transparent, elevation: 0,
         iconTheme: const IconThemeData(color: Colors.black),
         title: const Text('Pengajuan Izin',
             style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontFamily: 'Inter')),
@@ -155,7 +154,32 @@ class _PermohonanIzinPageState extends State<PermohonanIzinPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Jenis Izin', style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+            // Info
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.info_outline, color: Colors.blue, size: 18),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Pengajuan izin akan diproses oleh admin. Harap isi data dengan benar.',
+                      style: TextStyle(fontSize: 12, color: Colors.blue),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // Jenis Izin
+            const Text('Jenis Izin *', style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -163,17 +187,26 @@ class _PermohonanIzinPageState extends State<PermohonanIzinPage> {
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<String>(
                   isExpanded: true,
-                  hint: const Text('Pilih jenis Izin'),
+                  hint: const Text('Pilih jenis izin'),
                   value: _jenisIzin,
                   items: _izinList
-                      .map((String value) => DropdownMenuItem<String>(value: value, child: Text(value)))
+                      .map((v) => DropdownMenuItem<String>(value: v, child: Text(v)))
                       .toList(),
-                  onChanged: _isLoading ? null : (newValue) => setState(() => _jenisIzin = newValue),
+                  onChanged: _isLoading ? null : (v) => setState(() => _jenisIzin = v),
                 ),
               ),
             ),
+
+            if (_jenisIzin != null) ...[
+              const SizedBox(height: 8),
+              Text('Tambahkan keterangan alasan dengan jelas serta bukti foto sebagai pendukung',
+                  style: const TextStyle(color: Colors.blueGrey, fontSize: 11, fontStyle: FontStyle.italic)),
+            ],
+
             const SizedBox(height: 20),
-            const Text('Tanggal Izin', style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+
+            // Tanggal Izin
+            const Text('Tanggal Izin *', style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             GestureDetector(
               onTap: _isLoading ? null : _showMultiDatePicker,
@@ -195,136 +228,76 @@ class _PermohonanIzinPageState extends State<PermohonanIzinPage> {
                 ),
               ),
             ),
+
+            if (_selectedDates.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                '${_selectedDates.length} hari dipilih ',
+                style: const TextStyle(fontSize: 11, color: Colors.green, fontWeight: FontWeight.w500),
+              ),
+            ],
+
             const SizedBox(height: 20),
-            const Text('Alasan Lengkap', style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
+
+            // Alasan
+            const Text('Alasan Lengkap *', style: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             TextField(
               controller: _alasanController,
               readOnly: _isLoading,
-              onChanged: (value) => setState(() {}),
-              maxLines: 3,
+              onChanged: (_) => setState(() {}),
+              maxLines: 4,
               decoration: InputDecoration(
-                hintText: 'Tulis lengkap alasan izin...',
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                hintText: 'Tulis alasan izin secara lengkap dan jelas (min. 5 karakter)...',
+                filled: true, fillColor: Colors.white,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                counterText: '${_alasanController.text.length} karakter',
               ),
             ),
-            const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: const [
-                      Text('Unggah Media', style: TextStyle(fontWeight: FontWeight.bold)),
-                      Icon(Icons.close, size: 18),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  const Text('Tambahkan dokumen Anda di sini',
-                      style: TextStyle(color: Colors.grey, fontSize: 12)),
-                  const SizedBox(height: 16),
-                  GestureDetector(
-                    onTap: _isLoading
-                        ? null
-                        : () => setState(() => _uploadedFileName =
-                            "Surat_Izin_${_jenisIzin?.replaceAll(' ', '_')}.jpg"),
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 24),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF8F9FA),
-                        border: Border.all(color: Colors.blue.shade200),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Column(
-                        children: [
-                          Icon(Icons.cloud_upload_outlined, color: Colors.blue, size: 32),
-                          SizedBox(height: 8),
-                          Text('Tarik file Anda atau telusuri',
-                              style: TextStyle(color: Colors.blue, fontSize: 12)),
-                          SizedBox(height: 4),
-                          Text('Ukuran maksimal 10 MB',
-                              style: TextStyle(color: Colors.grey, fontSize: 10)),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(_getDokumenHint(),
-                      style: const TextStyle(
-                          color: Colors.redAccent, fontSize: 11, fontStyle: FontStyle.italic)),
-                  const SizedBox(height: 20),
-                  if (_uploadedFileName != null)
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade300),
-                          borderRadius: BorderRadius.circular(8)),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                                color: Colors.blue.shade100, borderRadius: BorderRadius.circular(4)),
-                            child: const Text('JPG',
-                                style: TextStyle(
-                                    color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 10)),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(_uploadedFileName!,
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                                const Text('500kb',
-                                    style: TextStyle(color: Colors.grey, fontSize: 10)),
-                                const SizedBox(height: 4),
-                                LinearProgressIndicator(
-                                    value: 1.0,
-                                    backgroundColor: Colors.grey.shade200,
-                                    color: Colors.blue),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          GestureDetector(
-                            onTap: _isLoading ? null : () => setState(() => _uploadedFileName = null),
-                            child: const Icon(Icons.cancel_outlined, color: Colors.grey, size: 20),
-                          )
-                        ],
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 40),
+
+            const SizedBox(height: 32),
+
+            // Tombol Submit
             SizedBox(
-              width: double.infinity,
-              height: 50,
+              width: double.infinity, height: 52,
               child: ElevatedButton(
-                onPressed: (_isFormValid() && !_isLoading) ? _handleUploadIzin : null,
+                onPressed: (_isFormValid() && !_isLoading) ? _handleSubmitIzin : null,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF2854C6),
                   disabledBackgroundColor: Colors.grey.shade300,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 child: _isLoading
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                      )
-                    : const Text('SUBMIT',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : const Text('KIRIM PENGAJUAN IZIN',
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
               ),
             ),
+
+            const SizedBox(height: 16),
+
+            // Syarat valid
+            if (!_isFormValid())
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Lengkapi data berikut:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.orange)),
+                    const SizedBox(height: 4),
+                    if (_jenisIzin == null)
+                      const Text('• Pilih jenis izin', style: TextStyle(fontSize: 12, color: Colors.orange)),
+                    if (_selectedDates.isEmpty)
+                      const Text('• Pilih minimal satu tanggal', style: TextStyle(fontSize: 12, color: Colors.orange)),
+                    if (_alasanController.text.trim().length < 5)
+                      const Text('• Tulis alasan minimal 5 karakter', style: TextStyle(fontSize: 12, color: Colors.orange)),
+                  ],
+                ),
+              ),
           ],
         ),
       ),

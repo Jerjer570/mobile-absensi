@@ -22,47 +22,36 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
     // VALIDASI EMAIL
     if (_emailController.text.trim().isEmpty) {
-
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("Email wajib diisi"),
         ),
       );
-
       return;
     }
-
     setState(() {
       _isLoading = true;
     });
-
     try {
-
       final response = await http.post(
         Uri.parse(ApiConstants.forgotPassword),
-
         headers: {
           "Content-Type": "application/json",
         },
-
         body: jsonEncode({
           "email": _emailController.text.trim(),
         }),
       );
 
       final data = jsonDecode(response.body);
-
       if (!mounted) return;
-
       // BERHASIL
       if (response.statusCode == 200) {
-
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(data["message"]),
           ),
         );
-
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -71,9 +60,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
             ),
           ),
         );
-
       } else {
-
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -81,76 +68,56 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
             ),
           ),
         );
-
       }
-
     } catch (e) {
-
       debugPrint("Error : $e");
-
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("Gagal terhubung ke server"),
         ),
       );
-
     } finally {
-
       if (mounted) {
-
         setState(() {
           _isLoading = false;
         });
-
       }
-
     }
   }
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
       backgroundColor: Colors.white,
-
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-
         leading: IconButton(
           icon: const Icon(
             Icons.arrow_back,
             color: Colors.black,
           ),
-
           onPressed: () {
             Navigator.pop(context);
           },
         ),
       ),
-
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: 24,
           ),
-
           child: Column(
             children: [
-
               const SizedBox(height: 20),
-
               const Text(
                 'Lupa Password ?',
-
                 style: TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-
               const SizedBox(height: 20),
-
               // UI TETAP SAMA
               Container(
                 decoration: BoxDecoration(
@@ -158,37 +125,28 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                     color: Colors.black,
                     width: 2.0,
                   ),
-
                   borderRadius:
                       BorderRadius.circular(16),
                 ),
-
                 child: Stack(
                   children: [
-
                     Image.asset(
                       'assets/images/Picture.png',
-
                       errorBuilder:
                           (context, error, stackTrace) {
-
                         return const Icon(
                           Icons.warning,
                           color: Colors.red,
                         );
                       },
                     ),
-
                     Align(
                       alignment: Alignment.topRight,
-
                       child: Image.asset(
                         'assets/images/icon.png',
                         height: 40,
-
                         errorBuilder:
                             (context, error, stackTrace) {
-
                           return const Icon(
                             Icons.warning,
                             color: Colors.red,
@@ -199,60 +157,46 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                   ],
                 ),
               ),
-
               const SizedBox(height: 30),
-
               TextField(
                 controller: _emailController,
-
                 decoration: InputDecoration(
                   hintText: "Masukkan Email",
-
                   border: OutlineInputBorder(
                     borderRadius:
                         BorderRadius.circular(16),
                   ),
                 ),
               ),
-
               const Spacer(),
-
               SizedBox(
                 width: double.infinity,
                 height: 55,
-
                 child: ElevatedButton(
-
                   onPressed:
                       _isLoading
                           ? null
                           : _sendForgotPassword,
-
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.black,
-
                     shape: RoundedRectangleBorder(
                       borderRadius:
                           BorderRadius.circular(30),
                     ),
                   ),
-
                   child:
                       _isLoading
                           ? const CircularProgressIndicator(
                               color: Colors.white,
                             )
-
                           : const Text(
                               "Berikutnya",
-
                               style: TextStyle(
                                 color: Colors.white,
                               ),
                             ),
                 ),
               ),
-
               const SizedBox(height: 20),
             ],
           ),

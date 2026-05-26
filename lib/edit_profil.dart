@@ -20,40 +20,22 @@ class _EditProfileState extends State<EditProfile> {
   // =========================================================
   // CONTROLLER
   // =========================================================
-
-  final TextEditingController _nameController =
-      TextEditingController();
-
-  final TextEditingController _emailController =
-      TextEditingController();
-
-  final TextEditingController _phoneController =
-      TextEditingController();
-
-  final TextEditingController _addressController =
-      TextEditingController();
-
-  final TextEditingController _dateController =
-      TextEditingController();
-
-  final TextEditingController _genderController =
-      TextEditingController();
+  final TextEditingController _nameController    = TextEditingController();
+  final TextEditingController _emailController   = TextEditingController();
+  final TextEditingController _phoneController   = TextEditingController();
+  final TextEditingController _addressController = TextEditingController();
+  final TextEditingController _dateController    = TextEditingController();
+  final TextEditingController _genderController  = TextEditingController();
 
   // =========================================================
-  // VARIABLE
+  // STATE
   // =========================================================
-
-  final Color navyColor = const Color(0xFF20295F);
-
-  bool _isLoading = false;
-
-  File? _imageFile;
-
+  final Color _navyColor = const Color(0xFF20295F);
+  bool   _isLoading        = false;
+  bool   _isFetchingProfile= true;
+  File?  _imageFile;
   String? _existingPhotoUrl;
-
-  // =========================================================
-  // INIT
-  // =========================================================
+  int?   _userId;
 
   @override
   void initState() {
@@ -73,553 +55,278 @@ class _EditProfileState extends State<EditProfile> {
   }
 
   // =========================================================
-  // FETCH PROFILE
+  // FETCH PROFIL dari GET /api/profile/{id}
   // =========================================================
-
   Future<void> _fetchProfileData() async {
-
-    setState(() {
-      _isLoading = true;
-    });
-
+    setState(() => _isFetchingProfile = true);
     try {
-
-      final prefs =
-          await SharedPreferences.getInstance();
-
-      final token =
-          prefs.getString('auth_token');
-
-      final userId =
-          prefs.getInt('user_id');
+      final prefs  = await SharedPreferences.getInstance();
+      final token  = prefs.getString('auth_token');
+      final userId = prefs.getInt('user_id');
 
       if (token == null || userId == null) {
+        _showSnackBar('Session tidak ditemukan, silakan login ulang', Colors.red);
         return;
       }
 
+      _userId = userId;
+
       final response = await http.get(
-        Uri.parse(
-          "${ApiConstants.updateProfile}/$userId",
-        ),
+        Uri.parse(ApiConstants.getProfile(userId)),
         headers: {
           'Authorization': 'Bearer $token',
-          'Accept': 'application/json',
+          'Accept'       : 'application/json',
         },
       );
 
-      print(response.body);
-
       if (response.statusCode == 200) {
-
-        final data =
-            jsonDecode(response.body)['data'];
+        final data = jsonDecode(response.body)['data'] as Map<String, dynamic>;
 
         setState(() {
-
-          _nameController.text =
-              data['nama_lengkap'] ?? '';
-
-          _emailController.text =
-              data['email'] ?? '';
-
-          _phoneController.text =
-              data['no_hp'] ?? '';
-
-          _addressController.text =
-              data['alamat'] ?? '';
-
-          _dateController.text =
-              data['tanggal_lahir'] ?? '';
-
-          _genderController.text =
-              data['jenis_kelamin'] ?? '';
-
-          _existingPhotoUrl =
-              data['foto_profile'];
-
+          _nameController.text    = data['nama_lengkap']  ?? '';
+          _emailController.text   = data['email']         ?? '';
+          _phoneController.text   = data['no_hp']         ?? '';
+          _addressController.text = data['alamat']        ?? '';
+          _dateController.text    = data['tanggal_lahir'] ?? '';
+          _genderController.text  = data['jenis_kelamin'] ?? '';
+          _existingPhotoUrl       = data['foto_profile'];
         });
+
+        // Simpan nama ke SharedPreferences agar HomePage langsung update
+        await prefs.setString('user_name', data['nama_lengkap'] ?? '');
+
+      } else {
+        final body = jsonDecode(response.body);
+        _showSnackBar(body['message'] ?? 'Gagal memuat profil', Colors.red);
       }
-
     } catch (e) {
-
-      print("ERROR FETCH PROFILE: $e");
-
+      _showSnackBar('Gagal terhubung ke server', Colors.red);
     } finally {
-
-      setState(() {
-        _isLoading = false;
-      });
-
+      if (mounted) setState(() => _isFetchingProfile = false);
     }
   }
 
   // =========================================================
   // PICK IMAGE
   // =========================================================
-
-  Future<void> _pickImage(
-      ImageSource source) async {
-
+  Future<void> _pickImage(ImageSource source) async {
     try {
-
-      final ImagePicker picker =
-          ImagePicker();
-
-      final XFile? image =
-          await picker.pickImage(
-        source: source,
-        imageQuality: 50,
-      );
-
-      if (image != null) {
-
-        setState(() {
-          _imageFile = File(image.path);
-        });
-
-      }
-
+      final picker = ImagePicker();
+      final image  = await picker.pickImage(source: source, imageQuality: 60);
+      if (image != null) setState(() => _imageFile = File(image.path));
     } catch (e) {
-
-      print("Error Pick Image: $e");
-
+      _showSnackBar('Gagal memilih gambar', Colors.red);
     }
   }
 
-  // =========================================================
-  // SHOW PICKER
-  // =========================================================
-
-  void _showPicker() {
-
+  void _showImagePicker() {
     showModalBottomSheet(
       context: context,
-      builder: (BuildContext bc) {
-
-        return SafeArea(
-          child: Wrap(
-            children: [
-
-              ListTile(
-                leading:
-                    const Icon(Icons.photo_library),
-                title: const Text('Galeri'),
-                onTap: () async {
-
-                  Navigator.pop(context);
-
-                  await _pickImage(
-                    ImageSource.gallery,
-                  );
-                },
-              ),
-
-              ListTile(
-                leading:
-                    const Icon(Icons.photo_camera),
-                title: const Text('Kamera'),
-                onTap: () async {
-
-                  Navigator.pop(context);
-
-                  await _pickImage(
-                    ImageSource.camera,
-                  );
-                },
-              ),
-            ],
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => SafeArea(
+        child: Wrap(children: [
+          ListTile(
+            leading: const Icon(Icons.photo_library, color: Colors.blue),
+            title: const Text('Galeri'),
+            onTap: () { Navigator.pop(context); _pickImage(ImageSource.gallery); },
           ),
-        );
-      },
+          ListTile(
+            leading: const Icon(Icons.photo_camera, color: Colors.green),
+            title: const Text('Kamera'),
+            onTap: () { Navigator.pop(context); _pickImage(ImageSource.camera); },
+          ),
+        ]),
+      ),
     );
   }
 
   // =========================================================
   // SELECT DATE
   // =========================================================
-
   Future<void> _selectDate() async {
-
-    DateTime? picked =
-        await showDatePicker(
-      context: context,
-      initialDate: DateTime(2000),
-      firstDate: DateTime(1970),
-      lastDate: DateTime.now(),
+    final picked = await showDatePicker(
+      context    : context,
+      initialDate: DateTime.tryParse(_dateController.text) ?? DateTime(2000),
+      firstDate  : DateTime(1970),
+      lastDate   : DateTime.now(),
     );
-
     if (picked != null) {
-
       setState(() {
-
         _dateController.text =
-            "${picked.year}-"
-            "${picked.month.toString().padLeft(2, '0')}-"
-            "${picked.day.toString().padLeft(2, '0')}";
-
+            '${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}';
       });
-
     }
   }
 
   // =========================================================
   // SELECT GENDER
   // =========================================================
-
   void _selectGender() {
-
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(20),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('Pilih Jenis Kelamin', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+            ),
+            ListTile(
+              leading: const Icon(Icons.male, color: Colors.blue),
+              title: const Text('Laki - Laki'),
+              onTap: () { setState(() => _genderController.text = 'Laki - Laki'); Navigator.pop(context); },
+            ),
+            ListTile(
+              leading: const Icon(Icons.female, color: Colors.pink),
+              title: const Text('Perempuan'),
+              onTap: () { setState(() => _genderController.text = 'Perempuan'); Navigator.pop(context); },
+            ),
+          ],
         ),
       ),
-      builder: (context) {
-
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-
-              const Padding(
-                padding: EdgeInsets.all(16),
-                child: Text(
-                  "Pilih Jenis Kelamin",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                  ),
-                ),
-              ),
-
-              ListTile(
-                leading: const Icon(
-                  Icons.male,
-                  color: Colors.blue,
-                ),
-                title:
-                    const Text("Laki - Laki"),
-                onTap: () {
-
-                  setState(() {
-                    _genderController.text =
-                        "Laki - Laki";
-                  });
-
-                  Navigator.pop(context);
-                },
-              ),
-
-              ListTile(
-                leading: const Icon(
-                  Icons.female,
-                  color: Colors.pink,
-                ),
-                title:
-                    const Text("Perempuan"),
-                onTap: () {
-
-                  setState(() {
-                    _genderController.text =
-                        "Perempuan";
-                  });
-
-                  Navigator.pop(context);
-                },
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 
   // =========================================================
-  // UPDATE PROFILE
+  // UPDATE PROFIL — POST /api/profile/{id} (multipart)
   // =========================================================
-
   Future<void> _updateProfile() async {
+    if (_userId == null) {
+      _showSnackBar('Session tidak valid', Colors.red);
+      return;
+    }
 
-    setState(() {
-      _isLoading = true;
-    });
+    // Validasi minimal
+    if (_nameController.text.trim().isEmpty) {
+      _showSnackBar('Nama tidak boleh kosong', Colors.red);
+      return;
+    }
+    if (_emailController.text.trim().isEmpty) {
+      _showSnackBar('Email tidak boleh kosong', Colors.red);
+      return;
+    }
+
+    setState(() => _isLoading = true);
 
     try {
-
-      final prefs =
-          await SharedPreferences.getInstance();
-
-      final token =
-          prefs.getString('auth_token');
-
-      final userId =
-          prefs.getInt('user_id');
-
-      if (token == null || userId == null) {
-
-        ScaffoldMessenger.of(context)
-            .showSnackBar(
-          const SnackBar(
-            content: Text(
-              "Session habis",
-            ),
-          ),
-        );
-
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('auth_token');
+      if (token == null) {
+        _showSnackBar('Session habis, silakan login ulang', Colors.red);
         return;
       }
 
-      final url = Uri.parse(
-        "${ApiConstants.updateProfile}/$userId",
-      );
+      final url     = Uri.parse(ApiConstants.updateProfileUrl(_userId!));
+      var   request = http.MultipartRequest('POST', url);
 
-      var request =
-          http.MultipartRequest(
-        'POST',
-        url,
-      );
+      request.headers['Authorization'] = 'Bearer $token';
+      request.headers['Accept']        = 'application/json';
 
-      request.headers.addAll({
-        'Authorization': 'Bearer $token',
-        'Accept': 'application/json',
-      });
-
-      request.fields['email'] =
-          _emailController.text;
-
-      request.fields['nama_lengkap'] =
-          _nameController.text;
-
-      request.fields['no_hp'] =
-          _phoneController.text;
-
-      request.fields['alamat'] =
-          _addressController.text;
-
-      request.fields['tanggal_lahir'] =
-          _dateController.text;
-
-      request.fields['jenis_kelamin'] =
-          _genderController.text;
-
-      request.fields['device_id'] =
-          'android_001';
+      request.fields['email']         = _emailController.text.trim();
+      request.fields['nama_lengkap']  = _nameController.text.trim();
+      request.fields['no_hp']         = _phoneController.text.trim();
+      request.fields['alamat']        = _addressController.text.trim();
+      request.fields['tanggal_lahir'] = _dateController.text.trim();
+      request.fields['jenis_kelamin'] = _genderController.text.trim();
 
       if (_imageFile != null) {
-
-        request.files.add(
-          await http.MultipartFile.fromPath(
-            'foto_profile',
-            _imageFile!.path,
-          ),
-        );
-
+        request.files.add(await http.MultipartFile.fromPath('foto', _imageFile!.path));
       }
 
-      var response =
-          await request.send();
+      final streamed = await request.send();
+      final res      = await http.Response.fromStream(streamed);
+      final data     = jsonDecode(res.body) as Map<String, dynamic>;
 
-      var res =
-          await http.Response.fromStream(
-              response);
+      if (res.statusCode == 200) {
+        // Update nama di cache lokal
+        await prefs.setString('user_name', _nameController.text.trim());
 
-      final data =
-          jsonDecode(res.body);
-
-      print(data);
-
-      if (response.statusCode == 200) {
-
-        if (mounted) {
-
-          ScaffoldMessenger.of(context)
-              .showSnackBar(
-            const SnackBar(
-              content: Text(
-                "Profil berhasil diperbarui",
-              ),
-            ),
-          );
-
-          Navigator.pop(context, true);
-
-        }
-
+        _showSnackBar(data['message'] ?? 'Profil berhasil diperbarui', Colors.green);
+        if (mounted) Navigator.pop(context, true); // return true agar halaman sebelumnya bisa refresh
       } else {
-
-        ScaffoldMessenger.of(context)
-            .showSnackBar(
-          SnackBar(
-            content: Text(
-              data['message'] ??
-                  "Gagal update profile",
-            ),
-          ),
-        );
-
+        // Tampilkan pesan validasi dari backend
+        if (data['errors'] != null) {
+          final errors   = data['errors'] as Map<String, dynamic>;
+          final firstMsg = errors.values.first;
+          final msg      = firstMsg is List ? firstMsg.first : firstMsg.toString();
+          _showSnackBar(msg, Colors.red);
+        } else {
+          _showSnackBar(data['message'] ?? 'Gagal memperbarui profil', Colors.red);
+        }
       }
-
     } catch (e) {
-
-      print("ERROR UPDATE: $e");
-
-      ScaffoldMessenger.of(context)
-          .showSnackBar(
-        const SnackBar(
-          content: Text(
-            "Terjadi kesalahan",
-          ),
-        ),
-      );
-
+      _showSnackBar('Terjadi kesalahan koneksi', Colors.red);
     } finally {
-
-      setState(() {
-        _isLoading = false;
-      });
-
+      if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  // =========================================================
+  // SNACKBAR
+  // =========================================================
+  void _showSnackBar(String msg, Color color) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), backgroundColor: color, behavior: SnackBarBehavior.floating),
+    );
   }
 
   // =========================================================
   // UI
   // =========================================================
-
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
-
       backgroundColor: Colors.white,
-
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-
+        backgroundColor: Colors.white, elevation: 0,
         leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios_new,
-            color: Colors.black,
-          ),
-          onPressed: () {
-            Navigator.pop(context);
-          },
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
         ),
-
-        title: const Text(
-          'Edit Profile',
-          style: TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-
+        title: const Text('Edit Profile', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
         centerTitle: true,
       ),
-
-      body: _isLoading &&
-              _nameController.text.isEmpty
-          ? const Center(
-              child:
-                  CircularProgressIndicator(),
-            )
+      body: _isFetchingProfile
+          ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding:
-                  const EdgeInsets.symmetric(
-                horizontal: 24,
-              ),
-
+              padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Column(
                 children: [
-
                   const SizedBox(height: 20),
 
+                  // ─── FOTO PROFIL ───
                   Center(
                     child: GestureDetector(
-                      onTap: _showPicker,
-
+                      onTap: _showImagePicker,
                       child: Stack(
                         children: [
-
                           Container(
-                            width: 140,
-                            height: 140,
-
-                            decoration:
-                                BoxDecoration(
-                              shape:
-                                  BoxShape.circle,
-
-                              border: Border.all(
-                                color: navyColor,
-                                width: 1.5,
-                              ),
-
-                              color: Colors
-                                  .grey.shade200,
-
-                              image:
-                                  _imageFile !=
-                                          null
-                                      ? DecorationImage(
-                                          image:
-                                              FileImage(
-                                            _imageFile!,
-                                          ),
-                                          fit: BoxFit
-                                              .cover,
-                                        )
-                                      : (_existingPhotoUrl !=
-                                              null
-                                          ? DecorationImage(
-                                              image:
-                                                  NetworkImage(
-                                                _existingPhotoUrl!,
-                                              ),
-                                              fit: BoxFit
-                                                  .cover,
-                                            )
-                                          : null),
+                            width: 130, height: 130,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: _navyColor, width: 2),
+                              color: Colors.grey.shade200,
+                              image: _imageFile != null
+                                  ? DecorationImage(image: FileImage(_imageFile!), fit: BoxFit.cover)
+                                  : (_existingPhotoUrl != null
+                                      ? DecorationImage(image: NetworkImage(_existingPhotoUrl!), fit: BoxFit.cover)
+                                      : null),
                             ),
-
-                            child: _imageFile ==
-                                        null &&
-                                    _existingPhotoUrl ==
-                                        null
-                                ? const Icon(
-                                    Icons.person,
-                                    size: 80,
-                                    color:
-                                        Colors.grey,
-                                  )
+                            child: (_imageFile == null && _existingPhotoUrl == null)
+                                ? const Icon(Icons.person, size: 70, color: Colors.grey)
                                 : null,
                           ),
-
                           Positioned(
-                            bottom: 10,
-                            right: 5,
-
+                            bottom: 6, right: 4,
                             child: Container(
-                              padding:
-                                  const EdgeInsets
-                                      .all(6),
-
-                              decoration:
-                                  const BoxDecoration(
-                                color: Color(
-                                    0xFF5C607E),
-                                shape:
-                                    BoxShape.circle,
-                              ),
-
-                              child: const Icon(
-                                Icons.camera_alt,
-                                color:
-                                    Colors.white,
-                                size: 20,
-                              ),
+                              padding: const EdgeInsets.all(6),
+                              decoration: const BoxDecoration(color: Color(0xFF5C607E), shape: BoxShape.circle),
+                              child: const Icon(Icons.camera_alt, color: Colors.white, size: 18),
                             ),
                           ),
                         ],
@@ -627,103 +334,46 @@ class _EditProfileState extends State<EditProfile> {
                     ),
                   ),
 
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 8),
+                  const Text('Ketuk foto untuk mengubah', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  const SizedBox(height: 28),
 
-                  _buildInputField(
-                    label: 'Nama',
-                    controller:
-                        _nameController,
-                  ),
-
+                  // ─── FORM FIELDS ───
+                  _buildField(label: 'Nama Lengkap',   controller: _nameController),
                   const SizedBox(height: 16),
-
-                  _buildInputField(
-                    label: 'Email',
-                    controller:
-                        _emailController,
-                    keyboardType:
-                        TextInputType
-                            .emailAddress,
-                  ),
-
+                  _buildField(label: 'Email',           controller: _emailController, keyboard: TextInputType.emailAddress),
                   const SizedBox(height: 16),
-
-                  _buildInputField(
-                    label: 'No HP',
-                    controller:
-                        _phoneController,
-                    keyboardType:
-                        TextInputType.phone,
-                  ),
-
+                  _buildField(label: 'No HP',           controller: _phoneController, keyboard: TextInputType.phone),
                   const SizedBox(height: 16),
-
-                  _buildInputField(
-                    label: 'Alamat',
-                    controller:
-                        _addressController,
-                  ),
-
+                  _buildField(label: 'Alamat',          controller: _addressController, maxLines: 2),
                   const SizedBox(height: 16),
-
-                  _buildInputField(
-                    label: 'Tanggal Lahir',
-                    controller:
-                        _dateController,
-                    suffixIcon:
-                        Icons.calendar_today,
-                    readOnly: true,
-                    onTap: _selectDate,
+                  _buildField(
+                    label: 'Tanggal Lahir', controller: _dateController,
+                    suffixIcon: Icons.calendar_today, readOnly: true, onTap: _selectDate,
                   ),
-
                   const SizedBox(height: 16),
-
-                  _buildInputField(
-                    label: 'Jenis Kelamin',
-                    controller:
-                        _genderController,
-                    suffixIcon:
-                        Icons.keyboard_arrow_down,
-                    readOnly: true,
-                    onTap: _selectGender,
+                  _buildField(
+                    label: 'Jenis Kelamin', controller: _genderController,
+                    suffixIcon: Icons.keyboard_arrow_down, readOnly: true, onTap: _selectGender,
                   ),
 
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 36),
 
+                  // ─── TOMBOL SIMPAN ───
                   SizedBox(
-                    width: double.infinity,
-                    height: 50,
-
+                    width: double.infinity, height: 50,
                     child: ElevatedButton(
-                      onPressed:
-                          _isLoading
-                              ? null
-                              : _updateProfile,
-
-                      style:
-                          ElevatedButton
-                              .styleFrom(
-                        backgroundColor:
-                            navyColor,
+                      onPressed: _isLoading ? null : _updateProfile,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _navyColor,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
-
-                      child: Text(
-                        _isLoading
-                            ? 'Memproses...'
-                            : 'Save Changes',
-
-                        style:
-                            const TextStyle(
-                          color:
-                              Colors.white,
-                          fontSize: 18,
-                          fontWeight:
-                              FontWeight.w600,
-                        ),
-                      ),
+                      child: _isLoading
+                          ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : const Text('Simpan Perubahan',
+                              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
                     ),
                   ),
-
                   const SizedBox(height: 30),
                 ],
               ),
@@ -732,87 +382,41 @@ class _EditProfileState extends State<EditProfile> {
   }
 
   // =========================================================
-  // INPUT FIELD
+  // INPUT FIELD BUILDER
   // =========================================================
-
-  Widget _buildInputField({
+  Widget _buildField({
     required String label,
     required TextEditingController controller,
-    TextInputType keyboardType =
-        TextInputType.text,
+    TextInputType keyboard = TextInputType.text,
     IconData? suffixIcon,
     bool readOnly = false,
     VoidCallback? onTap,
+    int maxLines = 1,
   }) {
-
     return Column(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
-
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-
-        Text(
-          label,
-
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-
-        const SizedBox(height: 8),
-
+        Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 6),
         TextField(
-          controller: controller,
-          keyboardType: keyboardType,
-          readOnly: readOnly,
-          onTap: onTap,
-
+          controller   : controller,
+          keyboardType : keyboard,
+          readOnly     : readOnly,
+          onTap        : onTap,
+          maxLines     : maxLines,
           decoration: InputDecoration(
-
-            filled: readOnly,
-
-            fillColor: readOnly
-                ? Colors.grey.shade100
-                : Colors.transparent,
-
-            contentPadding:
-                const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 15,
+            filled      : readOnly,
+            fillColor   : readOnly ? Colors.grey.shade100 : Colors.transparent,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+            suffixIcon  : suffixIcon != null ? Icon(suffixIcon, color: Colors.black54) : null,
+            border      : OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide  : BorderSide(color: Colors.grey.shade300),
             ),
-
-            suffixIcon: suffixIcon != null
-                ? Icon(
-                    suffixIcon,
-                    color: Colors.black,
-                  )
-                : null,
-
-            border: OutlineInputBorder(
-              borderRadius:
-                  BorderRadius.circular(8),
-            ),
-
-            enabledBorder:
-                OutlineInputBorder(
-              borderRadius:
-                  BorderRadius.circular(8),
-
-              borderSide: BorderSide(
-                color:
-                    Colors.grey.shade300,
-              ),
-            ),
-
-            focusedBorder:
-                OutlineInputBorder(
-              borderRadius:
-                  BorderRadius.circular(8),
-
-              borderSide: BorderSide(
-                color: navyColor,
-              ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide  : BorderSide(color: _navyColor),
             ),
           ),
         ),

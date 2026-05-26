@@ -3,46 +3,46 @@
 class ApiConstants {
 
   // =====================================================
-  // BASE URL
+  // BASE URL — sesuaikan dengan IP server Laravel
   // =====================================================
-
-  static const String baseUrl = 'http://localhost:8000/api';
+  static const String baseUrl = 'http://10.0.2.2:8000/api';
 
   // =====================================================
   // AUTH
   // =====================================================
+  static const String register       = '$baseUrl/register';
+  static const String login          = '$baseUrl/login';
+  static const String logout         = '$baseUrl/logout';
+  static const String me             = '$baseUrl/me';
 
-  static const String register = '$baseUrl/storeUserWithKaryawan';
-  static const String login = '$baseUrl/login';
-  static const String forgotPassword = '$baseUrl/forgot-password';
-  static const String newPassword = '$baseUrl/password/reset';
-
-  // =====================================================
-  // PRESENCE
-  // =====================================================
-
-static const String punchIn  = '$baseUrl/absensi';
-static const String punchOut = '$baseUrl/absensi';
-static const String koreksiAbsen = '$baseUrl/koreksi-absen';
-static const String permohonanIzin = '$baseUrl/pengajuan-izin';
-static const String history = '$baseUrl/absensi';
+  static const String forgotPassword = '$baseUrl/forgot-password/send-otp';
+  static const String verifyOtp      = '$baseUrl/forgot-password/verify-otp';
+  static const String newPassword    = '$baseUrl/forgot-password/reset-password';
 
   // =====================================================
-  // PROFILE
+  // ABSENSI
   // =====================================================
+  static const String absensi         = '$baseUrl/absensi';
+  static const String absensiToday    = '$baseUrl/absensi/today';
 
-  // GET PROFILE
-  static const String getProfile =
-      '$baseUrl/profile';
-
-  // UPDATE PROFILE
-  static const String updateProfile =
-      '$baseUrl/profile/update';
+  static const String punchIn         = '$baseUrl/absensi';
+  static const String punchOut        = '$baseUrl/absensi';
+  static const String history         = '$baseUrl/absensi';
 
   // =====================================================
-  // NOTIFICATION
+  // PENGAJUAN IZIN & KOREKSI
   // =====================================================
+  static const String koreksiAbsen    = '$baseUrl/koreksi-absen';
+  static const String permohonanIzin  = '$baseUrl/pengajuan-izin';
 
-  static const String updateNotification =
-      '$baseUrl/notification/update';
+  // =====================================================
+  // PROFIL KARYAWAN
+  // =====================================================
+  static String getProfile(int userId)    => '$baseUrl/profile/$userId';
+  static String updateProfileUrl(int userId) => '$baseUrl/profile/$userId';
+  
+  static const String updateNotification ='$baseUrl/notification/update';
+
+  static const String userResetPassword = '$baseUrl/user-resetpassword';
+
 }

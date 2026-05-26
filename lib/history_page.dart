@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
+import 'services/attendance_service.dart';
 
 class HistoryPage extends StatefulWidget {
   const HistoryPage({super.key});
@@ -11,57 +10,97 @@ class HistoryPage extends StatefulWidget {
 }
 
 class _HistoryPageState extends State<HistoryPage> {
-  DateTime _focusedDay = DateTime.now();
-  DateTime? _rangeStart = DateTime.now().subtract(const Duration(days: 7));
-  DateTime? _rangeEnd = DateTime.now();
+  DateTime  _focusedDay  = DateTime.now();
+  DateTime? _rangeStart  = DateTime.now().subtract(const Duration(days: 30));
+  DateTime? _rangeEnd    = DateTime.now();
+
   bool _isLoading = true;
+  bool _isOffline = false;
   List<Map<String, dynamic>> _attendanceHistory = [];
 
   @override
   void initState() {
     super.initState();
-    _loadAttendanceHistory();
+    _loadFromServer();
   }
 
-  Future<void> _loadAttendanceHistory() async {
+  // =========================================================
+  // LOAD HISTORY DARI SERVER
+  // =========================================================
+  Future<void> _loadFromServer() async {
+    setState(() { _isLoading = true; _isOffline = false; });
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final String? savedData = prefs.getString('attendance_history');
-      if (savedData != null) {
-        final List decoded = jsonDecode(savedData);
+      final String awal  = _rangeStart != null ? _formatDate(_rangeStart!) : '';
+      final String akhir = _rangeEnd   != null ? _formatDate(_rangeEnd!)   : '';
+
+      final result = await AttendanceService.getAttendanceHistory(
+        awal  : awal.isNotEmpty  ? awal  : null,
+        akhir : akhir.isNotEmpty ? akhir : null,
+      );
+
+      if (result['success'] == true) {
+        final List raw = result['data'] ?? [];
         setState(() {
-          _attendanceHistory = decoded.map((e) => Map<String, dynamic>.from(e)).toList();
-          _attendanceHistory = _attendanceHistory.reversed.toList();
-          _isLoading = false;
+          _attendanceHistory = raw
+              .map((e) => _mapServerItem(Map<String, dynamic>.from(e)))
+              .toList()
+              .reversed
+              .toList();
+          _isOffline = result['offline'] == true;
         });
       } else {
-        setState(() {
-          _attendanceHistory = [];
-          _isLoading = false;
-        });
+        setState(() { _attendanceHistory = []; });
       }
-    } catch (e) {
-      setState(() => _isLoading = false);
+    } catch (_) {
+      setState(() { _isOffline = true; });
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
+  // =========================================================
+  // MAPPING: data dari server → format yang dipakai UI
+  // Server mengirim: absen_masuk, absen_keluar, total_waktu, tanggal, status
+  // =========================================================
+  Map<String, dynamic> _mapServerItem(Map<String, dynamic> item) {
+    final masuk  = item['absen_masuk']  as String?;
+    final keluar = item['absen_keluar'] as String?;
+
+    return {
+      'date'       : item['tanggal']  ?? '',
+      'check_in'   : masuk  != null ? AttendanceService.formatTime24(masuk)  : '--:--',
+      'check_out'  : keluar != null ? AttendanceService.formatTime24(keluar) : '--:--',
+      'total_hours': item['total_waktu'] ?? '--:--',
+      'status'     : item['status']   ?? 'hadir',
+    };
+  }
+
+  String _formatDate(DateTime d) =>
+      '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
   String _formatCardDate(String dateString) {
-    DateTime date = DateTime.parse(dateString);
-    List<String> days = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
-    return "${date.day.toString().padLeft(2, '0')} ${days[date.weekday - 1]}";
+    try {
+      final date  = DateTime.parse(dateString);
+      const days  = ['Senin','Selasa','Rabu','Kamis','Jumat','Sabtu','Minggu'];
+      return '${date.day.toString().padLeft(2, '0')}\n${days[date.weekday - 1]}';
+    } catch (_) {
+      return dateString;
+    }
   }
 
-  List<Map<String, dynamic>> get _filteredHistory {
-    return _attendanceHistory.where((item) {
-      DateTime itemDate = DateTime.parse(item['date']);
-      if (_rangeStart != null && _rangeEnd != null) {
-        return itemDate.isAfter(_rangeStart!.subtract(const Duration(days: 1))) &&
-            itemDate.isBefore(_rangeEnd!.add(const Duration(days: 1)));
-      }
-      return true;
-    }).toList();
+  Color _statusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'hadir'   : return Colors.green;
+      case 'izin'    : return Colors.blue;
+      case 'sakit'   : return Colors.orange;
+      case 'alpha'   : return Colors.red;
+      default        : return Colors.grey;
+    }
   }
 
+  // =========================================================
+  // UI
+  // =========================================================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -69,6 +108,7 @@ class _HistoryPageState extends State<HistoryPage> {
       body: SafeArea(
         child: Column(
           children: [
+            // ─── HEADER ───
             Padding(
               padding: const EdgeInsets.all(24),
               child: Row(
@@ -76,33 +116,53 @@ class _HistoryPageState extends State<HistoryPage> {
                 children: [
                   const Text(
                     'Riwayat Kehadiran',
-                    style: TextStyle(
-                      fontFamily: 'Inter',
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1E293B),
-                    ),
+                    style: TextStyle(fontFamily: 'Inter', fontSize: 22,
+                        fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
                   ),
-                  Icon(Icons.more_vert, color: Colors.red),
+                  IconButton(
+                    icon: const Icon(Icons.refresh, color: Colors.red),
+                    onPressed: _loadFromServer,
+                    tooltip: 'Refresh',
+                  ),
                 ],
               ),
             ),
+
+            // ─── BADGE OFFLINE ───
+            if (_isOffline)
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 24),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.wifi_off, size: 14, color: Colors.orange),
+                    SizedBox(width: 6),
+                    Text('Mode offline — menampilkan data cache',
+                        style: TextStyle(fontSize: 12, color: Colors.orange)),
+                  ],
+                ),
+              ),
+
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Column(
                   children: [
+                    const SizedBox(height: 12),
+
+                    // ─── KALENDER ───
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.03),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
+                          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
                         ],
                       ),
                       child: TableCalendar(
@@ -114,56 +174,51 @@ class _HistoryPageState extends State<HistoryPage> {
                         rangeSelectionMode: RangeSelectionMode.toggledOn,
                         onRangeSelected: (start, end, focusedDay) {
                           setState(() {
-                            _rangeStart = start;
-                            _rangeEnd = end;
-                            _focusedDay = focusedDay;
+                            _rangeStart  = start;
+                            _rangeEnd    = end;
+                            _focusedDay  = focusedDay;
                           });
+                          if (end != null) _loadFromServer(); // fetch ulang saat range selesai dipilih
                         },
-                        // FIX: hapus const di HeaderStyle dan CalendarStyle
-                        headerStyle: HeaderStyle(
-                          formatButtonVisible: false,
-                          titleCentered: true,
-                        ),
-                        calendarStyle: CalendarStyle(
-                          rangeHighlightColor: const Color(0xFFFFCDD2),
-                          rangeStartDecoration: const BoxDecoration(
-                            color: Colors.red,
-                            shape: BoxShape.circle,
-                          ),
-                          rangeEndDecoration: const BoxDecoration(
-                            color: Colors.red,
-                            shape: BoxShape.circle,
-                          ),
+                        headerStyle: const HeaderStyle(formatButtonVisible: false, titleCentered: true),
+                        calendarStyle: const CalendarStyle(
+                          rangeHighlightColor      : Color(0xFFFFCDD2),
+                          rangeStartDecoration     : BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                          rangeEndDecoration       : BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                          todayDecoration          : BoxDecoration(color: Color(0xFFEF9A9A), shape: BoxShape.circle),
+                          selectedDecoration       : BoxDecoration(color: Colors.red, shape: BoxShape.circle),
                         ),
                       ),
                     ),
+
                     const SizedBox(height: 24),
+
+                    // ─── LOADING ───
                     if (_isLoading)
                       const Padding(
                         padding: EdgeInsets.only(top: 40),
-                        child: CircularProgressIndicator(),
+                        child: CircularProgressIndicator(color: Colors.red),
                       ),
-                    if (!_isLoading && _filteredHistory.isEmpty)
+
+                    // ─── EMPTY ───
+                    if (!_isLoading && _attendanceHistory.isEmpty)
                       Container(
                         padding: const EdgeInsets.all(40),
                         child: const Column(
                           children: [
                             Icon(Icons.history, size: 60, color: Colors.grey),
                             SizedBox(height: 16),
-                            Text("Belum ada riwayat absensi",
+                            Text('Belum ada riwayat absensi pada rentang tanggal ini',
+                                textAlign: TextAlign.center,
                                 style: TextStyle(fontFamily: 'Inter', color: Colors.grey)),
                           ],
                         ),
                       ),
+
+                    // ─── LIST HISTORY ───
                     if (!_isLoading)
-                      ..._filteredHistory.map((item) {
-                        return _buildHistoryItem(
-                          _formatCardDate(item['date']),
-                          item['check_in'] ?? '--:--',
-                          item['check_out'] ?? '--:--',
-                          item['total_hours'] ?? '--:--',
-                        );
-                      }).toList(),
+                      ..._attendanceHistory.map((item) => _buildHistoryItem(item)),
+
                     const SizedBox(height: 100),
                   ],
                 ),
@@ -175,32 +230,44 @@ class _HistoryPageState extends State<HistoryPage> {
     );
   }
 
-  Widget _buildHistoryItem(String date, String masuk, String keluar, String total) {
+  Widget _buildHistoryItem(Map<String, dynamic> item) {
+    final status = item['status'] as String? ?? 'hadir';
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8)],
       ),
       child: Row(
         children: [
+          // Kotak tanggal
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFC47373),
-              borderRadius: BorderRadius.circular(8),
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(color: const Color(0xFFC47373), borderRadius: BorderRadius.circular(8)),
             child: Text(
-              date,
+              _formatCardDate(item['date'] ?? ''),
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
             ),
           ),
           const SizedBox(width: 16),
-          Expanded(child: _buildTimeCol('Masuk', masuk)),
-          Expanded(child: _buildTimeCol('Keluar', keluar)),
-          Expanded(child: _buildTimeCol('Total Jam', total)),
+          Expanded(child: _buildTimeCol('Masuk',    item['check_in']   ?? '--:--')),
+          Expanded(child: _buildTimeCol('Keluar',   item['check_out']  ?? '--:--')),
+          Expanded(child: _buildTimeCol('Total',    item['total_hours'] ?? '--:--')),
+          // Badge status
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: _statusColor(status).withOpacity(0.15),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              status.toUpperCase(),
+              style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: _statusColor(status)),
+            ),
+          ),
         ],
       ),
     );
@@ -210,14 +277,8 @@ class _HistoryPageState extends State<HistoryPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Text(time,
-            style: const TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1E293B))),
-        Text(label,
-            style: const TextStyle(fontFamily: 'Inter', fontSize: 11, color: Colors.grey)),
+        Text(time, style: const TextStyle(fontFamily: 'Inter', fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
+        Text(label, style: const TextStyle(fontFamily: 'Inter', fontSize: 10, color: Colors.grey)),
       ],
     );
   }
