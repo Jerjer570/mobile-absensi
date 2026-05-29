@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api_constants.dart';
@@ -181,7 +182,7 @@ class AttendanceService {
     required String jenisIzin,
     required List<String> tanggalIzin,
     required String alasan,
-    String? fileNama,
+    File? fileMedia,
   }) async {
     try {
       final creds  = await _getCredentials();
@@ -191,28 +192,34 @@ class AttendanceService {
       if (token == null || userId == null) {
         return {'success': false, 'message': 'Session tidak ditemukan, silakan login ulang'};
       }
-
       if (tanggalIzin.isEmpty) {
         return {'success': false, 'message': 'Pilih minimal satu tanggal izin'};
       }
-
       tanggalIzin.sort();
 
-      final response = await http.post(Uri.parse(ApiConstants.permohonanIzin),
-        headers: {
-          'Accept'       : 'application/json',
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'jenis_izin': jenisIzin,
-          'tanggal': tanggalIzin,
-          'alasan': alasan,
-          'id_user': userId.toString(),
-        }),
-      );
-      //debugPrint('Status code: ${response.statusCode}');
-      //debugPrint('Response body: ${response.body}');
+      final uri = Uri.parse(ApiConstants.permohonanIzin);
+      final request = http.MultipartRequest('POST', uri);
+
+      request.headers.addAll({
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      });
+
+      request.fields['jenis_izin'] = jenisIzin;
+      request.fields['alasan'] = alasan;
+      request.fields['id_user'] = userId.toString();
+      for (int i = 0; i < tanggalIzin.length; i++) {
+        request.fields['tanggal[$i]'] = tanggalIzin[i];
+      }
+      if (fileMedia != null) {
+        final multipartFile = await http.MultipartFile.fromPath(
+          'media_pendukung',
+          fileMedia.path,
+        );
+        request.files.add(multipartFile);
+      }
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
 
       final data = jsonDecode(response.body);
 
@@ -223,7 +230,6 @@ class AttendanceService {
         };
       }
 
-      // Tampilkan pesan validasi jika ada
       if (response.statusCode == 422 && data['errors'] != null) {
         final errors = data['errors'] as Map<String, dynamic>;
         final firstError = errors.values.first;
@@ -236,8 +242,6 @@ class AttendanceService {
         'message': data['message'] ?? 'Gagal mengajukan izin',
       };
     } catch (e) {
-      //debugPrint('Submit izin error: $e');
-      //debugPrint('Stacktrace: $stack');
       return {'success': false, 'message': 'Terjadi kesalahan koneksi'};
     }
   }
@@ -252,7 +256,7 @@ class AttendanceService {
     required String waktu,           // HH:mm:ss — waktu masuk
     required String alasan,
     String?  waktuKeluar,
-    String?  fileNama,
+    File? fileMedia,
   }) async {
     try {
       final creds = await _getCredentials();
@@ -270,29 +274,33 @@ class AttendanceService {
         return t;
       }
 
-      final body = <String, String>{
-        'tanggal'       : tanggal,
-        'jenis_koreksi' : jenisKoreksi,
-        'alasan'        : alasan,
-        'id_user_opsional': userId.toString(),
-      };
+      final uri = Uri.parse(ApiConstants.koreksiAbsen);
+      final request = http.MultipartRequest('POST', uri);
 
+      request.headers.addAll({
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      });
+
+      request.fields['tanggal'] = tanggal;
+      request.fields['jenis_koreksi'] = jenisKoreksi;
+      request.fields['alasan'] = alasan;
+      request.fields['id_user_opsional'] = userId.toString();
       if (waktu.isNotEmpty) {
-        body['absen_masuk'] = _toHms(waktu);
+        request.fields['absen_masuk'] = _toHms(waktu);
       }
       if (waktuKeluar != null && waktuKeluar.isNotEmpty) {
-        body['absen_keluar'] = _toHms(waktuKeluar);
+        request.fields['absen_keluar'] = _toHms(waktuKeluar);
       }
-
-      final response = await http.post(
-        Uri.parse(ApiConstants.koreksiAbsen),
-        headers: {
-          'Accept'       : 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: body,
-      );
-
+      if (fileMedia != null) {
+        final multipartFile = await http.MultipartFile.fromPath(
+          'media_pendukung',
+          fileMedia.path,
+        );
+        request.files.add(multipartFile);
+      }
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
       final data = jsonDecode(response.body);
 
       if (response.statusCode == 200 || response.statusCode == 201) {

@@ -18,6 +18,7 @@ class _UserSettingPageState extends State<UserSettingPage> {
   String _userName  = '';
   String _userEmail = '';
   String _userRole  = '';
+  String _fotoProfile = '';
   bool   _isLoggingOut = false;
 
   @override
@@ -30,9 +31,10 @@ class _UserSettingPageState extends State<UserSettingPage> {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
     setState(() {
-      _userName  = prefs.getString('user_name')  ?? 'Karyawan';
+      _userName  = prefs.getString('user_name')  ?? 'username';
       _userEmail = prefs.getString('user_email') ?? '-';
-      _userRole  = prefs.getString('user_role')  ?? 'Staff';
+      _userRole  = prefs.getString('user_role')  ?? 'Karyawan';
+      _fotoProfile = prefs.getString('foto_profile') ?? '';
     });
   }
 
@@ -119,10 +121,15 @@ class _UserSettingPageState extends State<UserSettingPage> {
                 borderRadius: BorderRadius.circular(15),
               ),
               child: Row(children: [
-                const CircleAvatar(
-                  radius          : 28,
-                  backgroundImage : NetworkImage('https://i.pravatar.cc/150?img=11'),
-                ),
+                CircleAvatar(
+                      radius: 24,
+                      backgroundImage: (_fotoProfile.isNotEmpty && _fotoProfile != '')
+                          ? NetworkImage(_fotoProfile)
+                          : null, 
+                      child: (_fotoProfile.isEmpty || _fotoProfile == '')
+                          ? const Icon(Icons.person, size: 24, color: Colors.grey)
+                          : null,
+                    ),
                 const SizedBox(width: 14),
                 Expanded(child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

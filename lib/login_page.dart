@@ -82,9 +82,12 @@ class _LoginPageState extends State<LoginPage> {
       final prefs = await SharedPreferences.getInstance();
 
       // Simpan token dan data user ke lokal (SharedPreferences)
-     await prefs.setString('auth_token', result['token'] ?? '');
-await prefs.setInt('user_id', result['user']['id'] ?? 0);
-await prefs.setString('user_name', result['user']['data_karyawan']?['nama_lengkap'] ?? 'Karyawan');
+    await prefs.setString('auth_token', result['token'] ?? '');
+    await prefs.setInt('user_id', result['user']['id'] ?? 0);
+    await prefs.setString('user_name', result['user']['data_karyawan']?['nama_lengkap'] ?? 'Karyawan');
+    await prefs.setString('user_email', result['user']['email'] ?? '');
+    await prefs.setString('user_role', result['user']['role'] ?? 'karyawan');
+    await prefs.setString('foto_profile', result['user']['data_karyawan']?['foto'] ?? '');
 
       _showSnackBar(
         'Selamat Datang, ${result['user']?['data_karyawan']?['nama_lengkap'] ?? 'User'}!',

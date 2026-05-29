@@ -4,6 +4,8 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'services/api_constants.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:image/image.dart' as img;
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -23,6 +25,9 @@ class _RegisterPageState extends State<RegisterPage> {
   final TextEditingController _alamatController = TextEditingController();
 
   String selectedGender = "laki-laki";
+  File?  _imageFile;
+  String? _existingPhotoUrl;
+  final Color _navyColor = const Color(0xFF20295F);
 
   @override
   void dispose() {
@@ -69,28 +74,28 @@ class _RegisterPageState extends State<RegisterPage> {
       String tglDatabase = "${parts[2]}-${parts[1]}-${parts[0]}";
 
       String deviceId = await _getDeviceId();
+      var request = http.MultipartRequest('POST',Uri.parse(ApiConstants.register));
+      request.headers['Accept'] = 'application/json';
 
-      final response = await http.post(
-        Uri.parse(ApiConstants.register),
-        headers: {'Accept': 'application/json'},
-        body: {
-          'nama_lengkap': _namaController.text,
-          'email': _emailController.text,
-          'password': _passwordController.text,
-          'tanggal_lahir': tglDatabase,
-          'no_hp': _phoneController.text,
-          'device_id': deviceId,
-          'jenis_kelamin': selectedGender,
-          'alamat': _alamatController.text,
-        },
-      );
+      request.fields['nama_lengkap'] = _namaController.text;
+      request.fields['email'] = _emailController.text;
+      request.fields['password'] = _passwordController.text;
+      request.fields['tanggal_lahir'] = tglDatabase;
+      request.fields['no_hp'] = _phoneController.text;
+      request.fields['device_id'] = deviceId;
+      request.fields['jenis_kelamin'] = selectedGender;
+      request.fields['alamat'] = _alamatController.text;
 
-      print("STATUS: ${response.statusCode}");
-      print("BODY: ${response.body}");
+      // Tambahkan file gambar
+      if (_imageFile != null) {
+        request.files.add(await http.MultipartFile.fromPath('foto', _imageFile!.path));
+      }
 
-      final data = jsonDecode(response.body);
+      final streamed = await request.send();
+      final res      = await http.Response.fromStream(streamed);
+      final data     = jsonDecode(res.body) as Map<String, dynamic>;
 
-      if ((response.statusCode == 200 || response.statusCode == 201) &&
+      if ((res.statusCode == 200 || res.statusCode == 201) &&
           data['success'] == true) {
         _showSnackBar(data['message'] ?? 'Registrasi berhasil', Colors.green);
         Future.delayed(const Duration(seconds: 2), () {
@@ -173,6 +178,62 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
+  
+
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(source: source, imageQuality: 60);
+      if (picked != null) {
+        final originalFile = File(picked.path);
+        final bytes = await originalFile.readAsBytes();
+        final decodedImage = img.decodeImage(bytes);
+
+        if (decodedImage != null) {
+          final jpgBytes = img.encodeJpg(decodedImage, quality: 60);
+          final jpgFile = File(picked.path.replaceAll(RegExp(r'\.\w+$'), '.jpg'));
+          await jpgFile.writeAsBytes(jpgBytes);
+
+          setState(() => _imageFile = jpgFile);
+        }
+      }
+    } catch (e) {
+      _showSnackBar('Gagal memilih gambar', Colors.red);
+    }
+  }
+
+
+  Future<void> _pickImagee(ImageSource source) async {
+    try {
+      final picker = ImagePicker();
+      final image  = await picker.pickImage(source: source, imageQuality: 50);
+      if (image != null) setState(() => _imageFile = File(image.path));
+    } catch (e) {
+      _showSnackBar('Gagal memilih gambar', Colors.red);
+    }
+  }
+  void _showImagePicker() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => SafeArea(
+        child: Wrap(children: [
+          ListTile(
+            leading: const Icon(Icons.photo_library, color: Colors.blue),
+            title: const Text('Galeri'),
+            onTap: () { Navigator.pop(context); _pickImage(ImageSource.gallery); },
+          ),
+          ListTile(
+            leading: const Icon(Icons.photo_camera, color: Colors.green),
+            title: const Text('Kamera'),
+            onTap: () { Navigator.pop(context); _pickImage(ImageSource.camera); },
+          ),
+        ]),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -181,6 +242,46 @@ class _RegisterPageState extends State<RegisterPage> {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
+            const SizedBox(height: 20),
+            // ─── FOTO PROFIL ───
+            Center(
+              child: GestureDetector(
+                onTap: _showImagePicker,
+                child: Stack(
+                  children: [
+                    Container(
+                      width: 130, height: 130,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: _navyColor, width: 2),
+                        color: Colors.grey.shade200,
+                        image: _imageFile != null
+                            ? DecorationImage(image: FileImage(_imageFile!), fit: BoxFit.cover)
+                            : (_existingPhotoUrl != null
+                                ? DecorationImage(image: NetworkImage(_existingPhotoUrl!), fit: BoxFit.cover)
+                                : null),
+                      ),
+                      child: (_imageFile == null && _existingPhotoUrl == null)
+                          ? const Icon(Icons.person, size: 70, color: Colors.grey)
+                          : null,
+                    ),
+                    Positioned(
+                      bottom: 6, right: 4,
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: const BoxDecoration(color: Color(0xFF5C607E), shape: BoxShape.circle),
+                        child: const Icon(Icons.camera_alt, color: Colors.white, size: 18),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 8),
+            const Text('Ketuk foto untuk mengubah', style: TextStyle(fontSize: 12, color: Colors.grey)),
+            const SizedBox(height: 28),
+                  
             _buildInputField(
               label: 'Email',
               hint: 'email@gmail.com',

@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import 'package:image/image.dart' as img;
 import 'services/api_constants.dart';
 
 class EditProfile extends StatefulWidget {
@@ -112,8 +112,20 @@ class _EditProfileState extends State<EditProfile> {
   Future<void> _pickImage(ImageSource source) async {
     try {
       final picker = ImagePicker();
-      final image  = await picker.pickImage(source: source, imageQuality: 60);
-      if (image != null) setState(() => _imageFile = File(image.path));
+      final picked = await picker.pickImage(source: source, imageQuality: 60);
+      if (picked != null) {
+        final originalFile = File(picked.path);
+        final bytes = await originalFile.readAsBytes();
+        final decodedImage = img.decodeImage(bytes);
+
+        if (decodedImage != null) {
+          final jpgBytes = img.encodeJpg(decodedImage, quality: 60);
+          final jpgFile = File(picked.path.replaceAll(RegExp(r'\.\w+$'), '.jpg'));
+          await jpgFile.writeAsBytes(jpgBytes);
+
+          setState(() => _imageFile = jpgFile);
+        }
+      }
     } catch (e) {
       _showSnackBar('Gagal memilih gambar', Colors.red);
     }

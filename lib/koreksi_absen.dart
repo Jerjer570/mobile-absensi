@@ -1,9 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-
+import 'package:file_picker/file_picker.dart';
+import 'package:image/image.dart' as img;
 import 'services/api_constants.dart';
 import 'services/attendance_service.dart';
 
@@ -26,6 +28,7 @@ class _KoreksiAbsenPageState extends State<KoreksiAbsenPage> {
 
   bool _isSubmitting   = false;
   bool _isFetchingData = false;
+  bool _isLoading = false;
 
   // Data dari server
   bool    _hasAbsensiData = false; // true = ada record absensi tanggal ini
@@ -33,6 +36,9 @@ class _KoreksiAbsenPageState extends State<KoreksiAbsenPage> {
   String  _sysJamKeluar   = '--:--';
 
   String  _mode = 'koreksi';
+
+  File? _selectedFile; 
+  String? _uploadedFileName;
 
   final List<String> _jenisKoreksiList = [
     'Lupa Absen Masuk',
@@ -63,7 +69,7 @@ class _KoreksiAbsenPageState extends State<KoreksiAbsenPage> {
     final picked = await showDatePicker(
       context   : context,
       initialDate: now,
-      firstDate  : now.subtract(const Duration(days: 60)),
+      firstDate  : DateTime(now.year - 1),
       lastDate   : now,
     );
     if (picked == null) return;
@@ -180,19 +186,18 @@ class _KoreksiAbsenPageState extends State<KoreksiAbsenPage> {
     setState(() => _isSubmitting = true);
 
     final tanggal = DateFormat('yyyy-MM-dd').format(_selectedDate!);
-    Map<String, dynamic> result;
-
-    if (_mode == 'tambah_baru') {
-      result = await _submitAbsensiBaru(tanggal);
-    } else {
-      result = await AttendanceService.submitKoreksi(
-        tanggal      : tanggal,
-        jenisKoreksi : _jenisKoreksi!,
-        waktu        : _waktuMasuk != null ? _timeToServer(_waktuMasuk!) : _timeToServer(_waktuKeluar!),
-        alasan       : _alasanController.text.trim(),
-        waktuKeluar  : _waktuKeluar != null ? _timeToServer(_waktuKeluar!) : null,
-      );
-    }
+    
+    final stringJenisKoreksi = _mode == 'tambah_baru' 
+        ? (_jenisKoreksi ?? 'Tambah Absensi Baru') 
+        : _jenisKoreksi!;
+    final result = await AttendanceService.submitKoreksi(
+      tanggal     : tanggal,
+      jenisKoreksi: stringJenisKoreksi,
+      waktu       : _waktuMasuk != null ? _timeToServer(_waktuMasuk!) : '',
+      waktuKeluar : _waktuKeluar != null ? _timeToServer(_waktuKeluar!) : '',
+      alasan      : _alasanController.text.trim(),
+      fileMedia   : _selectedFile,
+    );
 
     if (!mounted) return;
     setState(() => _isSubmitting = false);
@@ -207,47 +212,86 @@ class _KoreksiAbsenPageState extends State<KoreksiAbsenPage> {
 
     if (result['success'] == true) Navigator.pop(context);
   }
+  
 
-  Future<Map<String, dynamic>> _submitAbsensiBaru(String tanggal) async {
+  Future<void> _pickDocument() async {
     try {
-      final prefs  = await SharedPreferences.getInstance();
-      final token  = prefs.getString('auth_token');
-      final userId = prefs.getInt('user_id');
-      if (token == null || userId == null) {
-        return {'success': false, 'message': 'Session tidak ditemukan'};
-      }
-
-      final response = await http.post(
-        Uri.parse(ApiConstants.koreksiAbsen),
-        headers: {
-          'Accept'       : 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: {
-          'tanggal'       : tanggal,
-          'jenis_koreksi' : _jenisKoreksi ?? 'Tambah Absensi Baru',
-          'absen_masuk'   : _waktuMasuk  != null ? _timeToServer(_waktuMasuk!)  : '',
-          'absen_keluar'  : _waktuKeluar != null ? _timeToServer(_waktuKeluar!) : '',
-          'alasan'        : _alasanController.text.trim(),
-        },
+      FilePickerResult? result = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['jpg', 'jpeg', 'png', 'pdf'],
       );
 
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      if (result == null || result.files.single.path == null) return;
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return {'success': true, 'message': data['message'] ?? 'Pengajuan absensi baru berhasil dikirim'};
+      final String filePath = result.files.single.path!;
+      final String fileName = result.files.single.name;
+      final File originalFile = File(filePath);
+      final int fileBytes = await originalFile.length();
+      const int max5MB = 5 * 1024 * 1024; 
+
+      if (fileBytes > max5MB) {
+        _showSnackBar('Ukuran file terlalu besar. Maksimal batas file adalah 5 MB.', Colors.orange);
+        return;
       }
+      setState(() => _isLoading = true);
+      if (fileName.toLowerCase().endsWith('.jpg') ||
+          fileName.toLowerCase().endsWith('.jpeg') ||
+          fileName.toLowerCase().endsWith('.png')) {
+        
+        final bytes = await originalFile.readAsBytes();
+        final decodedImage = img.decodeImage(bytes);
 
-      if (response.statusCode == 422 && data['errors'] != null) {
-        final errors = data['errors'] as Map<String, dynamic>;
-        final first  = errors.values.first;
-        return {'success': false, 'message': first is List ? first.first : first.toString()};
+        if (decodedImage != null) {
+          final jpgBytes = img.encodeJpg(decodedImage, quality: 60);
+          
+          final String newPath = filePath.replaceAll(RegExp(r'\.\w+$'), '_compressed.jpg');
+          final File jpgFile = File(newPath);
+          await jpgFile.writeAsBytes(jpgBytes);
+
+          setState(() {
+            _selectedFile = jpgFile;
+            _uploadedFileName = fileName;
+          });
+        } else {
+          setState(() {
+            _selectedFile = originalFile;
+            _uploadedFileName = fileName;
+          });
+        }
+      } 
+      else if (fileName.toLowerCase().endsWith('.pdf')) {
+        setState(() {
+          _selectedFile = originalFile;
+          _uploadedFileName = fileName;
+        });
       }
-
-      return {'success': false, 'message': data['message'] ?? 'Gagal mengirim pengajuan'};
-    } catch (_) {
-      return {'success': false, 'message': 'Gagal koneksi ke server'};
+    } catch (e) {
+      _showSnackBar('Gagal memilih atau memproses file', Colors.red);
+    } finally {
+      setState(() => _isLoading = false);
     }
+  }
+
+  void _showSnackBar(String message, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  String _getFileSizeString() {
+    if (_selectedFile == null) return '0 KB';
+    final int bytes = _selectedFile!.lengthSync(); // Membaca ukuran file secara langsung
+    
+    if (bytes < 1024) return '$bytes B';
+    final double kb = bytes / 1024;
+    if (kb < 1024) return '${kb.toStringAsFixed(1)} KB';
+    
+    final double mb = kb / 1024;
+    return '${mb.toStringAsFixed(1)} MB';
   }
 
   // ═══════════════════════════════════════
@@ -512,6 +556,154 @@ class _KoreksiAbsenPageState extends State<KoreksiAbsenPage> {
                 counterText: '${_alasanController.text.length} / min 10',
                 border     : OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+              ),
+            ),
+
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: const [
+                      Text('Unggah Media', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  const Text('Tambahkan dokumen Anda di sini',
+                      style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  const SizedBox(height: 16),
+                  GestureDetector(
+                    onTap: _isLoading ? null : _pickDocument,
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8F9FA),
+                        border: Border.all(
+                          color: _selectedFile != null ? Colors.green.shade300 : Colors.blue.shade200,
+                          width: _selectedFile != null ? 2 : 1,
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: _selectedFile == null
+                          ? const Column(
+                              children: [
+                                Icon(Icons.cloud_upload_outlined, color: Colors.blue, size: 32),
+                                SizedBox(height: 8),
+                                Text('Tarik file Anda atau telusuri',
+                                    style: TextStyle(color: Colors.blue, fontSize: 12, fontWeight: FontWeight.w500)),
+                                SizedBox(height: 4),
+                                Text('Ukuran maksimal 5 MB',
+                                    style: TextStyle(color: Colors.grey, fontSize: 10)),
+                              ],
+                            )
+                          : Column(
+                              children: [
+                                if (_uploadedFileName?.toLowerCase().endsWith('.jpg') == true ||
+                                    _uploadedFileName?.toLowerCase().endsWith('.jpeg') == true ||
+                                    _uploadedFileName?.toLowerCase().endsWith('.png') == true)
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(6),
+                                    child: Image.file(
+                                      _selectedFile!,
+                                      height: 120,
+                                      width: double.infinity,
+                                      fit: BoxFit.contain,
+                                    ),
+                                  )
+                                else if (_uploadedFileName?.toLowerCase().endsWith('.pdf') == true)
+                                  const Column(
+                                    children: [
+                                      Icon(Icons.picture_as_pdf, color: Colors.red, size: 48),
+                                      SizedBox(height: 4),
+                                      Text('Dokumen PDF', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                                    ],
+                                  ),
+                                  
+                                const SizedBox(height: 12),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: Colors.grey.shade200),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.file_present, size: 16, color: Colors.grey),
+                                      const SizedBox(width: 6),
+                                      Flexible(
+                                        child: Text(
+                                          _uploadedFileName ?? '',
+                                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                const Text('Klik kembali untuk mengganti file',
+                                    style: TextStyle(color: Colors.grey, fontSize: 10, fontStyle: FontStyle.italic)),
+                              ],
+                            ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  if (_uploadedFileName != null)
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade300),
+                          borderRadius: BorderRadius.circular(8)),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                                color: Colors.blue.shade100, borderRadius: BorderRadius.circular(4)),
+                            child: const Text('JPG',
+                                style: TextStyle(
+                                    color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 10)),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(_uploadedFileName ?? '',
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                                  overflow: TextOverflow.ellipsis, // Menghindari teks overflow jika nama file terlalu panjang
+                                ),
+                                Text(_getFileSizeString(),
+                                  style: const TextStyle(color: Colors.grey, fontSize: 10),
+                                ),
+                                const SizedBox(height: 4),
+                                LinearProgressIndicator(
+                                    value: 1.0,
+                                    backgroundColor: Colors.grey.shade200,
+                                    color: Colors.blue),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          GestureDetector(
+                            onTap: _isLoading ? null : () { setState(() {
+                                _selectedFile = null;
+                                _uploadedFileName = null;
+                              });
+                            },
+                            child: const Icon(Icons.cancel_outlined, color: Colors.grey, size: 20),
+                          )
+                        ],
+                      ),
+                    ),
+                ],
               ),
             ),
 

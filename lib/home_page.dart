@@ -34,6 +34,7 @@ class _HomePageState extends State<HomePage> {
   String _userName = 'username';
   String _userRole = 'Karyawan';
   int?   _userId;
+  String _fotoProfile = '';
 
   @override
   void initState() {
@@ -62,6 +63,7 @@ class _HomePageState extends State<HomePage> {
       _userName = prefs.getString('user_name') ?? 'username';
       _userRole = prefs.getString('user_role') ?? 'Karyawan';
       _userId   = prefs.getInt('user_id');
+      _fotoProfile = prefs.getString('foto_profile') ?? '';
     });
   }
 
@@ -243,9 +245,14 @@ class _HomePageState extends State<HomePage> {
                 },
                 child: Row(
                   children: [
-                    const CircleAvatar(
+                    CircleAvatar(
                       radius: 24,
-                      backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=11'),
+                      backgroundImage: (_fotoProfile.isNotEmpty && _fotoProfile != '')
+                          ? NetworkImage(_fotoProfile)
+                          : null, 
+                      child: (_fotoProfile.isEmpty || _fotoProfile == '')
+                          ? const Icon(Icons.person, size: 24, color: Colors.grey)
+                          : null,
                     ),
                     const SizedBox(width: 16),
                     Column(
