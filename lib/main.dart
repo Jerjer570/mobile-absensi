@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'pages/UserSettingPage.dart'; 
+import 'pages/layanan_page.dart';
 
-import 'login_page.dart';
-import 'register_page.dart';
+
+import 'pages/login_page.dart';
+import 'pages/register_page.dart';
 import 'services/alarm_service.dart';   // ← import AlarmService
 
 
@@ -40,7 +43,10 @@ class MyApp extends StatelessWidget {
         primaryColor: const Color(0xFF3498DB),
         useMaterial3: true,
       ),
-      home: const OnboardingPageFinal(),
+
+
+      home: const  LayananPage (), 
+
     );
   }
 }
