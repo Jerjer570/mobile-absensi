@@ -1,23 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'UserSettingPage.dart'; 
-import 'layanan_page.dart';
-
-
+import 'package:awesome_notifications/awesome_notifications.dart';
 import 'login_page.dart';
 import 'register_page.dart';
-import 'services/alarm_service.dart';   // ← import AlarmService
 
 
-// ════════════════════════════════════════════════════════════
-// ENTRY POINT
-// AlarmService.init() dipanggil di sini agar:
-//   1. flutter_local_notifications ter-inisialisasi sebelum widget apapun
-//   2. Semua alarm aktif di-reschedule otomatis saat app dibuka
-// ════════════════════════════════════════════════════════════
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await AlarmService.init();
+  AwesomeNotifications().initialize(
+    null,
+    [
+      NotificationChannel(
+        channelGroupKey: 'absensi_reminders_group',
+        channelKey: 'absensi_alarm_channel',
+        channelName: 'Pengingat Absensi',
+        channelDescription: 'Saluran pengingat jam masuk dan pulang kerja PT Tunas Jaya',
+        defaultColor: const Color(0xFF3498DB),
+        ledColor: Colors.white,
+        importance: NotificationImportance.Max,
+        criticalAlerts: true,
+        playSound: true,
+        soundSource: 'resource://raw/alarm1',
+      )
+    ],
+  );
   runApp(const MyApp());
 }
 

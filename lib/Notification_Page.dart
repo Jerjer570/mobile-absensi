@@ -1,11 +1,5 @@
-import 'dart:convert';
-
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
-
-import 'services/api_constants.dart';
+import 'services/alarm_service.dart';
 
 class NotificationPage extends StatefulWidget {
   const NotificationPage({super.key});
@@ -18,843 +12,113 @@ class NotificationPage extends StatefulWidget {
 class _NotificationPageState
     extends State<NotificationPage> {
 
-  // =========================================================
-  // STATE
-  // =========================================================
+  bool isMasukActive = false;
+  bool isKeluarActive = false;
 
-  bool isMasukOn = false;
-  bool isPulangOn = false;
+  int masukHour = 8;
+  int masukMinute = 0;
+  int keluarHour = 17;
+  int keluarMinute = 0;
 
-  bool _isLoading = false;
+  @override
+  void initState() {
+    super.initState();
+    loadAlarmData();
+  }
 
-  String mainTime = "12.00";
-
-  // =========================================================
-  // UPDATE NOTIFICATION API
-  // =========================================================
-
-  Future<void> _toggleNotification(
-    String type,
-    bool value,
-  ) async {
-
-    if (_isLoading) return;
-
+  Future<void> loadAlarmData() async {
+    final config = await AlarmService.getSavedConfig();
     setState(() {
-      _isLoading = true;
+      masukHour = config['masuk_hour'];
+      masukMinute = config['masuk_minute'];
+      isMasukActive = config['masuk_active'];
+
+      keluarHour = config['keluar_hour'];
+      keluarMinute = config['keluar_minute'];
+      isKeluarActive = config['keluar_active'];
     });
+  }
 
-    try {
+  String _formatWaktu(int hour, int minute) {
+    return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+  }
 
-      // =========================
-      // SHARED PREFERENCES
-      // =========================
+  Future<void> _pilihWaktu(String type, int currentHour, int currentMinute) async {
+    final TimeOfDay? picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: currentHour, minute: currentMinute),
+      helpText: type == 'masuk' ? 'PILIH JAM ABSEN MASUK' : 'PILIH JAM ABSEN KELUAR',
+    );
 
-      final prefs =
-      await SharedPreferences.getInstance();
-
-      final token =
-      prefs.getString('auth_token');
-
-      // =========================
-      // VALIDASI TOKEN
-      // =========================
-
-      if (token == null) {
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              "Token tidak ditemukan",
-            ),
-          ),
-        );
-
-        return;
-      }
-
-      // =========================
-      // REQUEST API
-      // =========================
-
-      final response = await http.post(
-
-        Uri.parse(
-          ApiConstants.updateNotification,
-        ),
-
-        headers: {
-
-          'Authorization': 'Bearer $token',
-
-          'Accept': 'application/json',
-
-        },
-
-        body: {
-
-          'type': type,
-
-          'status': value ? '1' : '0',
-
-        },
+    if (picked != null) {
+      await AlarmService.setPengingat(
+        type: type,
+        hour: picked.hour,
+        minute: picked.minute,
       );
-
-      // =========================
-      // DEBUG
-      // =========================
-
-      print("STATUS: ${response.statusCode}");
-
-      print("BODY: ${response.body}");
-
-      final data =
-      jsonDecode(response.body);
-
-      // =========================
-      // SUCCESS
-      // =========================
-
-      if (response.statusCode == 200) {
-
-        setState(() {
-
-          if (type == 'masuk') {
-
-            isMasukOn = value;
-
-          } else {
-
-            isPulangOn = value;
-
-          }
-
-        });
-
-        if (mounted) {
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                data['message'] ??
-                    "Berhasil update notifikasi",
-              ),
-            ),
-          );
-
-        }
-
-      } else {
-
-        // =========================
-        // FAILED
-        // =========================
-
-        if (mounted) {
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                data['message'] ??
-                    "Gagal update notifikasi",
-              ),
-            ),
-          );
-
-        }
-
-      }
-
-    } catch (e) {
-
-      print("ERROR NOTIFICATION: $e");
-
-      if (mounted) {
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              "Terjadi kesalahan",
-            ),
-          ),
-        );
-
-      }
-
-    } finally {
-
-      if (mounted) {
-
-        setState(() {
-          _isLoading = false;
-        });
-
-      }
-
+      loadAlarmData();
+      _showSnackbar('Pengingat $type berhasil diatur ke ${_formatWaktu(picked.hour, picked.minute)}');
     }
   }
 
-  // =========================================================
-  // POPUP EDIT ALARM
-  // =========================================================
-
-  void _showEditAlarmPopup() {
-
-    bool isMasuk = true;
-
-    Duration currentDuration =
-    const Duration(
-      hours: 12,
-      minutes: 0,
-    );
-
-    showModalBottomSheet(
-
-      context: context,
-
-      isScrollControlled: true,
-
-      backgroundColor:
-      const Color(0xFF1C1C1E),
-
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(25),
-        ),
-      ),
-
-      builder: (context) {
-
-        return StatefulBuilder(
-
-          builder: (
-              context,
-              setPopupState,
-              ) {
-
-            return Container(
-
-              padding:
-              const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 10,
-              ),
-
-              height:
-              MediaQuery.of(context)
-                  .size
-                  .height *
-                  0.55,
-
-              child: Column(
-
-                children: [
-
-                  // =====================
-                  // HANDLE
-                  // =====================
-
-                  Container(
-                    width: 40,
-                    height: 5,
-
-                    margin:
-                    const EdgeInsets.only(
-                      bottom: 15,
-                    ),
-
-                    decoration: BoxDecoration(
-                      color: Colors.white24,
-
-                      borderRadius:
-                      BorderRadius.circular(
-                        10,
-                      ),
-                    ),
-                  ),
-
-                  // =====================
-                  // HEADER
-                  // =====================
-
-                  Row(
-
-                    mainAxisAlignment:
-                    MainAxisAlignment
-                        .spaceBetween,
-
-                    children: [
-
-                      TextButton(
-
-                        onPressed: () {
-                          Navigator.pop(
-                            context,
-                          );
-                        },
-
-                        child: const Text(
-                          "Batalkan",
-
-                          style: TextStyle(
-                            color: Colors.red,
-                            fontSize: 17,
-                          ),
-                        ),
-                      ),
-
-                      const Text(
-
-                        "Edit Alarm",
-
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight:
-                          FontWeight.bold,
-                        ),
-                      ),
-
-                      TextButton(
-
-                        onPressed: () {
-
-                          setState(() {
-
-                            String hours =
-                            currentDuration
-                                .inHours
-                                .toString()
-                                .padLeft(
-                                2,
-                                '0');
-
-                            String minutes =
-                            (currentDuration
-                                .inMinutes %
-                                60)
-                                .toString()
-                                .padLeft(
-                                2,
-                                '0');
-
-                            mainTime =
-                            "$hours.$minutes";
-
-                          });
-
-                          Navigator.pop(
-                            context,
-                          );
-                        },
-
-                        child: const Text(
-
-                          "Selesai",
-
-                          style: TextStyle(
-                            color:
-                            Color(
-                              0xFF30D158,
-                            ),
-                            fontSize: 17,
-                            fontWeight:
-                            FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // =====================
-                  // TAB
-                  // =====================
-
-                  Container(
-
-                    height: 40,
-
-                    padding:
-                    const EdgeInsets.all(
-                      2,
-                    ),
-
-                    decoration: BoxDecoration(
-                      color:
-                      const Color(
-                        0xFF3A3A3C,
-                      ),
-
-                      borderRadius:
-                      BorderRadius.circular(
-                        10,
-                      ),
-                    ),
-
-                    child: Row(
-
-                      children: [
-
-                        // =================
-                        // MASUK
-                        // =================
-
-                        Expanded(
-
-                          child: GestureDetector(
-
-                            onTap: () {
-
-                              setPopupState(() {
-                                isMasuk = true;
-                              });
-
-                            },
-
-                            child: Container(
-
-                              alignment:
-                              Alignment.center,
-
-                              decoration:
-                              BoxDecoration(
-
-                                color: isMasuk
-                                    ? const Color(
-                                  0xFF636366,
-                                )
-                                    : Colors
-                                    .transparent,
-
-                                borderRadius:
-                                BorderRadius
-                                    .circular(
-                                  8,
-                                ),
-                              ),
-
-                              child: Text(
-
-                                "Masuk",
-
-                                style: TextStyle(
-                                  color: isMasuk
-                                      ? Colors
-                                      .white
-                                      : Colors
-                                      .grey,
-
-                                  fontWeight:
-                                  FontWeight
-                                      .w600,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        // =================
-                        // DIVIDER
-                        // =================
-
-                        Container(
-                          width: 1,
-                          height: 20,
-                          color: Colors.white
-                              .withOpacity(
-                            0.1,
-                          ),
-                        ),
-
-                        // =================
-                        // PULANG
-                        // =================
-
-                        Expanded(
-
-                          child: GestureDetector(
-
-                            onTap: () {
-
-                              setPopupState(() {
-                                isMasuk = false;
-                              });
-
-                            },
-
-                            child: Container(
-
-                              alignment:
-                              Alignment.center,
-
-                              decoration:
-                              BoxDecoration(
-
-                                color: !isMasuk
-                                    ? const Color(
-                                  0xFF636366,
-                                )
-                                    : Colors
-                                    .transparent,
-
-                                borderRadius:
-                                BorderRadius
-                                    .circular(
-                                  8,
-                                ),
-                              ),
-
-                              child: Text(
-
-                                "Pulang",
-
-                                style: TextStyle(
-                                  color: !isMasuk
-                                      ? Colors
-                                      .white
-                                      : Colors
-                                      .grey,
-
-                                  fontWeight:
-                                  FontWeight
-                                      .w600,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 30),
-
-                  // =====================
-                  // TIMER PICKER
-                  // =====================
-
-                  Expanded(
-
-                    child: Container(
-
-                      decoration: BoxDecoration(
-
-                        color:
-                        const Color(
-                          0xFF2C2C2E,
-                        ),
-
-                        borderRadius:
-                        BorderRadius.circular(
-                          20,
-                        ),
-                      ),
-
-                      child: CupertinoTheme(
-
-                        data:
-                        const CupertinoThemeData(
-                          brightness:
-                          Brightness.dark,
-                        ),
-
-                        child:
-                        CupertinoTimerPicker(
-
-                          mode:
-                          CupertinoTimerPickerMode
-                              .hm,
-
-                          initialTimerDuration:
-                          currentDuration,
-
-                          onTimerDurationChanged:
-                              (
-                              Duration
-                              newDuration,
-                              ) {
-
-                            currentDuration =
-                                newDuration;
-
-                          },
-                        ),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 10),
-                ],
-              ),
-            );
-          },
-        );
-      },
+  void _showSnackbar(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), duration: const Duration(seconds: 2)),
     );
   }
-
-  // =========================================================
-  // UI
-  // =========================================================
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
-
-      backgroundColor: Colors.white,
-
-      // =====================================================
-      // APPBAR
-      // =====================================================
-
+      backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-
         backgroundColor: Colors.white,
-
         elevation: 0,
-
-        leading: IconButton(
-
-          icon: const Icon(
-            Icons.arrow_back_ios_new,
-            color: Colors.black,
-          ),
-
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
-
         title: const Text(
-
-          'Notifikasi',
-
-          style: TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.bold,
-          ),
+          'Pengingat & Alarm Absen',
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 18),
         ),
-
-        centerTitle: true,
-      ),
-
-      // =====================================================
-      // BODY
-      // =====================================================
-
-      body: Padding(
-
-        padding:
-        const EdgeInsets.symmetric(
-          horizontal: 24.0,
-        ),
-
-        child: Column(
-
-          crossAxisAlignment:
-          CrossAxisAlignment.start,
-
-          children: [
-
-            const SizedBox(height: 20),
-
-            // =================================================
-            // SETTING JAM
-            // =================================================
-
-            _buildSectionTitle(
-              "Setting Jam",
-            ),
-
-            _buildSettingJamCard(),
-
-            const SizedBox(height: 30),
-
-            // =================================================
-            // INGATKAN ABSEN
-            // =================================================
-
-            _buildSectionTitle(
-              "Ingatkan Absen",
-            ),
-
-            _buildNotificationCard(),
-          ],
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
         ),
       ),
-    );
-  }
-
-  // =========================================================
-  // TITLE
-  // =========================================================
-
-  Widget _buildSectionTitle(
-      String title,
-      ) {
-
-    return Padding(
-
-      padding:
-      const EdgeInsets.only(
-        left: 4,
-        bottom: 12,
-      ),
-
-      child: Text(
-
-        title,
-
-        style: const TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 16,
-        ),
-      ),
-    );
-  }
-
-  // =========================================================
-  // CARD JAM
-  // =========================================================
-
-  Widget _buildSettingJamCard() {
-
-    return Container(
-
-      padding:
-      const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 12,
-      ),
-
-      decoration: BoxDecoration(
-
-        color:
-        const Color(0xFFF5F6FA),
-
-        borderRadius:
-        BorderRadius.circular(15),
-      ),
-
-      child: Row(
-
+      body: ListView(
+        padding: const EdgeInsets.all(16),
         children: [
-
-          const Icon(
-            Icons.wb_sunny,
-            color: Colors.orange,
-            size: 24,
-          ),
-
-          const SizedBox(width: 15),
-
-          Text(
-
-            mainTime,
-
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-
-          const Spacer(),
-
-          IconButton(
-
-            onPressed: _showEditAlarmPopup,
-
-            icon: const Icon(
-              Icons.add_circle_outline,
-              color: Color(0xFF20295F),
-              size: 30,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // =========================================================
-  // CARD NOTIFICATION
-  // =========================================================
-
-  Widget _buildNotificationCard() {
-
-    return Container(
-
-      decoration: BoxDecoration(
-
-        color:
-        const Color(0xFFF5F6FA),
-
-        borderRadius:
-        BorderRadius.circular(15),
-      ),
-
-      child: Column(
-
-        children: [
-
-          // =========================
-          // MASUK
-          // =========================
-
-          _buildSwitchTile(
-
-            icon:
-            Icons.wb_sunny_rounded,
-
-            iconColor:
-            Colors.yellow.shade700,
-
-            title: 'Masuk',
-
-            value: isMasukOn,
-
-            onChanged: _isLoading
-                ? null
-                : (val) {
-              _toggleNotification(
-                'masuk',
-                val,
-              );
+          _buildAlarmCard(
+            title: 'Pengingat Absen Masuk',
+            subtitle: 'Mengingatkan sebelum jam masuk kerja dimulai.',
+            icon: Icons.login_rounded,
+            iconColor: const Color(0xFF3498DB),
+            time: _formatWaktu(masukHour, masukMinute),
+            isActive: isMasukActive,
+            onTimeTap: () => _pilihWaktu('masuk', masukHour, masukMinute),
+            onSwitchChanged: (val) async {
+              if (val) {
+                await AlarmService.setPengingat(type: 'masuk', hour: masukHour, minute: masukMinute);
+              } else {
+                await AlarmService.batalkanPengingat('masuk');
+              }
+              loadAlarmData();
             },
           ),
-
-          Divider(
-            height: 1,
-            indent: 20,
-            endIndent: 20,
-            color: Colors.grey.shade300,
-          ),
-
-          // =========================
-          // PULANG
-          // =========================
-
-          _buildSwitchTile(
-
-            icon:
-            Icons.wb_sunny_rounded,
-
-            iconColor:
-            Colors.orange.shade700,
-
-            title: 'Pulang',
-
-            value: isPulangOn,
-
-            onChanged: _isLoading
-                ? null
-                : (val) {
-              _toggleNotification(
-                'pulang',
-                val,
-              );
+          const SizedBox(height: 16),
+          _buildAlarmCard(
+            title: 'Pengingat Absen Keluar',
+            subtitle: 'Mengingatkan waktu presensi keluar saat jam operasional berakhir.',
+            icon: Icons.logout_rounded,
+            iconColor: Colors.orange,
+            time: _formatWaktu(keluarHour, keluarMinute),
+            isActive: isKeluarActive,
+            onTimeTap: () => _pilihWaktu('keluar', keluarHour, keluarMinute),
+            onSwitchChanged: (val) async {
+              if (val) {
+                await AlarmService.setPengingat(type: 'keluar', hour: keluarHour, minute: keluarMinute);
+              } else {
+                await AlarmService.batalkanPengingat('keluar');
+              }
+              loadAlarmData();
             },
           ),
         ],
@@ -862,77 +126,78 @@ class _NotificationPageState
     );
   }
 
-  // =========================================================
-  // SWITCH TILE
-  // =========================================================
-
-  Widget _buildSwitchTile({
-
-    required IconData icon,
-
-    required Color iconColor,
-
+  Widget _buildAlarmCard({
     required String title,
-
-    required bool value,
-
-    required ValueChanged<bool>? onChanged,
-
+    required String subtitle,
+    required IconData icon,
+    required Color iconColor,
+    required String time,
+    required bool isActive,
+    required VoidCallback onTimeTap,
+    required ValueChanged<bool> onSwitchChanged,
   }) {
-
-    return ListTile(
-
-      contentPadding:
-      const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 4,
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
-
-      leading: Icon(
-        icon,
-        color: iconColor,
-        size: 28,
-      ),
-
-      title: Text(
-
-        title,
-
-        style: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-
-      trailing: Switch(
-
-        value: value,
-
-        onChanged: onChanged,
-
-        thumbColor:
-        WidgetStateProperty.resolveWith<Color>(
-              (states) {
-
-            return states.contains(
-              WidgetState.selected,
-            )
-                ? Colors.black
-                : Colors.white;
-          },
-        ),
-
-        trackColor:
-        WidgetStateProperty.resolveWith<Color>(
-              (states) {
-
-            return states.contains(
-              WidgetState.selected,
-            )
-                ? Colors.grey.shade400
-                : Colors.grey.shade300;
-          },
-        ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: iconColor, size: 28),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    const SizedBox(height: 2),
+                    Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                  ],
+                ),
+              ),
+              Switch(
+                value: isActive,
+                onChanged: onSwitchChanged,
+                activeColor: const Color(0xFF3498DB),
+              )
+            ],
+          ),
+          const Divider(height: 24, color: Color(0xFFE2E8F0)),
+          InkWell(
+            onTap: onTimeTap,
+            borderRadius: BorderRadius.circular(8),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Waktu Alarm',
+                    style: TextStyle(fontWeight: FontWeight.w500, fontSize: 14, color: Color(0xFF64748B)),
+                  ),
+                  Row(
+                    children: [
+                      Text(
+                        time,
+                        style: TextStyle(
+                          fontSize: 22, 
+                          fontWeight: FontWeight.bold, 
+                          color: isActive ? Colors.black87 : Colors.grey
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey),
+                    ],
+                  )
+                ],
+              ),
+            ),
+          )
+        ],
       ),
     );
   }

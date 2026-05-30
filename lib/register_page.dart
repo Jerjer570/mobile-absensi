@@ -95,13 +95,18 @@ class _RegisterPageState extends State<RegisterPage> {
       final res      = await http.Response.fromStream(streamed);
       final data     = jsonDecode(res.body) as Map<String, dynamic>;
 
-      if ((res.statusCode == 200 || res.statusCode == 201) &&
-          data['success'] == true) {
-        _showSnackBar(data['message'] ?? 'Registrasi berhasil', Colors.green);
-        Future.delayed(const Duration(seconds: 2), () {
+      if ((res.statusCode == 200 || res.statusCode == 201) && data['success'] == true) {
+          _showSnackBar(data['message'] ?? 'Registrasi berhasil', Colors.green);
+          Future.delayed(const Duration(seconds: 2), () {
           if (!mounted) return;
           Navigator.pop(context);
         });
+      } else if (res.statusCode == 500) {
+          _showSnackBar(data['message'] ?? 'Gagal mengirim pesan aktivasi, Silahkan Hubungi Admin', Colors.orange);
+            Future.delayed(const Duration(seconds: 2), () {
+            if (!mounted) return;
+            Navigator.pop(context);
+          });
       } else {
           if (data['errors'] != null) {
             Map<String, dynamic> errors = data['errors'];
@@ -112,7 +117,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
             _showSnackBar(errorMessage, Colors.orange);
           } else {
-            _showSnackBar('Registrasi gagal', Colors.orange);
+            _showSnackBar(data['message'] ?? 'Registrasi gagal', Colors.orange);
           }
       }
     } catch (e) {
