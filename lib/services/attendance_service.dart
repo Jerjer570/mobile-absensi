@@ -246,6 +246,87 @@ class AttendanceService {
     }
   }
 
+  // get izin  
+  static Future<Map<String, dynamic>> getIzinHistory({String? status}) async {
+    try {
+      final creds  = await _getCredentials();
+      final token  = creds['token'] as String?;
+      final userId = creds['userId'] as int?;
+
+      if (token == null || userId == null) {
+        return {'success': false, 'message': 'Session tidak ditemukan, silakan login ulang'};
+      }
+
+      String url = ApiConstants.izinHistory;
+      if (status != null && status.toLowerCase() != 'semua') {
+        url += '?status=${status.toLowerCase()}';
+      }
+      final response = await http.get(Uri.parse(url),
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200) {
+        final List list = data['data'] ?? [];
+        
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('izin_history_cache_${status ?? 'semua'}', jsonEncode(list));
+        return {'success': true, 'data': list};
+      }
+
+      return {
+        'success': false,
+        'message': data['message'] ?? 'Gagal mengambil data izin',
+      };
+    } catch (e) {
+      final prefs = await SharedPreferences.getInstance();
+      final cached = prefs.getString('izin_history_cache_${status ?? 'semua'}');
+      if (cached != null) {
+        return {'success': true, 'data': jsonDecode(cached), 'offline': true};
+      }
+      return {'success': false, 'message': 'Tidak ada koneksi dan tidak ada data cache'};
+    }
+  }
+
+  // DELETE IZIN PENDING
+  static Future<Map<String, dynamic>> deleteIzin(dynamic id) async {
+    try {
+      final creds  = await _getCredentials();
+      final token  = creds['token'] as String?;
+      final userId = creds['userId'] as int?;
+
+      if (token == null || userId == null) {
+        return {'success': false, 'message': 'Session tidak ditemukan, silakan login ulang'};
+      }
+
+      String url = ApiConstants.destroyIzin(id);
+      
+      final response = await http.delete(
+        Uri.parse(url),
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return {'success': true, 'message': data['message'] ?? 'Pengajuan izin berhasil dihapus'};
+      }
+
+      return {
+        'success': false,
+        'message': data['message'] ?? 'Gagal menghapus pengajuan izin',
+      };
+    } catch (e) {
+      return {'success': false, 'message': 'Terjadi kesalahan koneksi saat menghapus data'};
+    }
+  }
+
   // =========================================================
   // SUBMIT KOREKSI ABSEN
   // POST /api/koreksi-absen
@@ -263,7 +344,7 @@ class AttendanceService {
       final token = creds['token'] as String?;
       final userId = creds['userId'] as int?;
 
-      if (token == null) {
+      if (token == null || userId == null) {
         return {'success': false, 'message': 'Token tidak ditemukan'};
       }
 
@@ -323,6 +404,89 @@ class AttendanceService {
       };
     } catch (e) {
       return {'success': false, 'message': 'Terjadi kesalahan koneksi'};
+    }
+  }
+
+  // GET HISTORY KOREKSI
+  static Future<Map<String, dynamic>> getKoreksiHistory({String? status}) async {
+    try {
+      final creds  = await _getCredentials();
+      final token  = creds['token'] as String?;
+      final userId = creds['userId'] as int?;
+
+      if (token == null || userId == null) {
+        return {'success': false, 'message': 'Session tidak ditemukan, silakan login ulang'};
+      }
+
+      String url = ApiConstants.koreksiHistory;
+      if (status != null && status.toLowerCase() != 'semua') {
+        url += '?status=${status.toLowerCase()}';
+      }
+
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        final List list = data['data'] ?? [];
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('koreksi_history_cache_${status ?? 'semua'}', jsonEncode(list));
+
+        return {'success': true, 'data': list};
+      }
+
+      return {
+        'success': false,
+        'message': data['message'] ?? 'Gagal mengambil history koreksi',
+      };
+    } catch (e) {
+      final prefs = await SharedPreferences.getInstance();
+      final cached = prefs.getString('koreksi_history_cache_${status ?? 'semua'}');
+      if (cached != null) {
+        return {'success': true, 'data': jsonDecode(cached), 'offline': true};
+      }
+      return {'success': false, 'message': 'Tidak ada koneksi internet dan data lokal'};
+    }
+  }
+
+  // HAPUS DATA KOREKSI (PENDING)
+  static Future<Map<String, dynamic>> deleteKoreksi(int idKoreksi) async {
+    try {
+      final creds  = await _getCredentials();
+      final token  = creds['token'] as String?;
+      final userId = creds['userId'] as int?;
+
+      if (token == null || userId == null) {
+        return {'success': false, 'message': 'Session tidak ditemukan, silakan login ulang'};
+      }
+      String url = ApiConstants.destroyKoreksi(idKoreksi);
+
+      final response = await http.delete(
+        Uri.parse(url),
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200) {
+        return {'success': true, 'message': data['message'] ?? 'Pengajuan koreksi berhasil dihapus'};
+      }
+
+      return {
+        'success': false,
+        'message': data['message'] ?? 'Gagal menghapus pengajuan',
+      };
+    } catch (e) {
+      return {'success': false, 'message': 'Terjadi kendala koneksi sewaktu menghapus data'};
     }
   }
 

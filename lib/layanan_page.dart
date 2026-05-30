@@ -28,21 +28,6 @@ class LayananPage extends StatelessWidget {
                       color: Colors.black87,
                     ),
                   ),
-                  TextButton.icon(
-                    onPressed: () {
-                      // Logika Logout (Contoh: kembali ke Login)
-                      print("Logout diklik");
-                    },
-                    icon: const Icon(Icons.logout, color: Color(0xFFB74154), size: 20),
-                    label: const Text(
-                      'LOGOUT',
-                      style: TextStyle(
-                        color: Color(0xFFB74154),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -100,54 +85,6 @@ class LayananPage extends StatelessWidget {
                   ),
                 ],
               ),
-            ),
-          ],
-        ),
-      ),
-
-      // --- BOTTOM NAVIGATION BAR CUSTOM ---
-      bottomNavigationBar: Container(
-        margin: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
-        decoration: BoxDecoration(
-          color: const Color(0xFF224597), // Warna biru navy
-          borderRadius: BorderRadius.circular(40),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.home_outlined, color: Colors.white, size: 28),
-              onPressed: () {},
-            ),
-            // Tombol Layanan Aktif (Style Pill Black)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.black,
-                borderRadius: BorderRadius.circular(30),
-              ),
-              child: Row(
-                children: const [
-                  Icon(Icons.grid_view_rounded, color: Colors.white, size: 20),
-                  SizedBox(width: 8),
-                  Text(
-                    'LAYANAN',
-                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.calendar_today_rounded, color: Colors.white, size: 24),
-              onPressed: () {},
             ),
           ],
         ),

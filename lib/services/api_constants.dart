@@ -33,7 +33,11 @@ class ApiConstants {
   // PENGAJUAN IZIN & KOREKSI
   // =====================================================
   static const String koreksiAbsen    = '$baseUrl/koreksi-absen';
+  static const String koreksiHistory  = '$baseUrl/koreksi-absen/history';
+  static String destroyKoreksi(int idKoreksi)  => '$baseUrl/koreksi-absen/destroy/$idKoreksi';
   static const String permohonanIzin  = '$baseUrl/pengajuan-izin';
+  static const String izinHistory  = '$baseUrl/pengajuan-izin/history';
+  static String destroyIzin(int idIzin) => '$baseUrl/pengajuan-izin/destroy/$idIzin';
 
   // =====================================================
   // PROFIL KARYAWAN

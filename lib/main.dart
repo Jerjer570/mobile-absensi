@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'pages/UserSettingPage.dart'; 
-import 'pages/layanan_page.dart';
+import 'UserSettingPage.dart'; 
+import 'layanan_page.dart';
 
 
-import 'pages/login_page.dart';
-import 'pages/register_page.dart';
+import 'login_page.dart';
+import 'register_page.dart';
 import 'services/alarm_service.dart';   // ← import AlarmService
 
 
@@ -17,7 +17,7 @@ import 'services/alarm_service.dart';   // ← import AlarmService
 // ════════════════════════════════════════════════════════════
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await AlarmService.init();   // ← inisialisasi alarm + reschedule semua
+  await AlarmService.init();
   runApp(const MyApp());
 }
 
@@ -45,7 +45,7 @@ class MyApp extends StatelessWidget {
       ),
 
 
-      home: const  LayananPage (), 
+      home: const  OnboardingPageFinal(), 
 
     );
   }
