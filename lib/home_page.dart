@@ -84,8 +84,8 @@ class _HomePageState extends State<HomePage> {
           final keluar = todayData['absen_keluar'] as String?;
 
           setState(() {
-            _checkInTime  = masuk  != null ? AttendanceService.from24ToAmPm(masuk)  : '--:--';
-            _checkOutTime = keluar != null ? AttendanceService.from24ToAmPm(keluar) : '--:--';
+            _checkInTime  = masuk  != null ? AttendanceService.formatTime24(masuk)  : '--:--';
+            _checkOutTime = keluar != null ? AttendanceService.formatTime24(keluar) : '--:--';
 
             // Sudah masuk tapi belum keluar → tombol tunjukkan KELUAR
             _isPunchedIn = (masuk != null && keluar == null);
