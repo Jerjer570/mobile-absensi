@@ -89,6 +89,7 @@ class _PermohonanIzinPageState extends State<PermohonanIzinPage> {
                 child: TableCalendar(
                   firstDay: DateTime(DateTime.now().year - 1),
                   lastDay: DateTime(DateTime.now().year + 1),
+                  locale: 'id_ID',
                   focusedDay: _selectedDates.isNotEmpty ? _selectedDates.last : DateTime.now(),
                   selectedDayPredicate: (day) =>
                       _selectedDates.any((d) => isSameDay(d, day)),

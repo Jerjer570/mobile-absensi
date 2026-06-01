@@ -31,7 +31,7 @@ class AlarmService {
         body: bodyText,
         category: NotificationCategory.Alarm,
         wakeUpScreen: true,
-        fullScreenIntent: true,
+        fullScreenIntent: false,
         customSound: 'resource://raw/alarm1',
         notificationLayout: NotificationLayout.Default,
       ),

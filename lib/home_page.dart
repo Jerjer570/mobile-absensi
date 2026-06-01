@@ -214,7 +214,7 @@ class _HomePageState extends State<HomePage> {
   String _formatDate(DateTime time) {
     const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
     const days   = ['Senin','Selasa','Rabu','Kamis','Jumat','Sabtu','Minggu'];
-    return '${months[time.month - 1]} ${time.day}, ${time.year} - ${days[time.weekday - 1]}';
+    return '${days[time.weekday - 1]}, ${time.day} ${months[time.month - 1]} ${time.year}';
   }
 
   String _todayString() {

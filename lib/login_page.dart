@@ -69,39 +69,37 @@ class _LoginPageState extends State<LoginPage> {
       _showSnackBar('Email dan Password wajib diisi!', Colors.red);
       return;
     }
-
     setState(() => _isLoading = true);
-
-    // MENGGUNAKAN SERVICE (Alur: UI -> Service -> API)
     final result = await AuthService.login(email:email, password: password, deviceId: deviceId);
 
     if (!mounted) return;
     setState(() => _isLoading = false);
 
     if (result['success'] == true) {
+      String tanggalHariIni = DateTime.now().toIso8601String().split('T')[0];
       final prefs = await SharedPreferences.getInstance();
 
-      // Simpan token dan data user ke lokal (SharedPreferences)
-    await prefs.setString('auth_token', result['token'] ?? '');
-    await prefs.setInt('user_id', result['user']['id'] ?? 0);
-    await prefs.setString('user_name', result['user']['data_karyawan']?['nama_lengkap'] ?? 'Karyawan');
-    await prefs.setString('user_email', result['user']['email'] ?? '');
-    await prefs.setString('user_role', result['user']['role'] ?? 'karyawan');
-    await prefs.setString('foto_profile', result['user']['data_karyawan']?['foto'] ?? '');
+      await prefs.setString('auth_token', result['token'] ?? '');
+      await prefs.setInt('user_id', result['user']['id'] ?? 0);
+      await prefs.setString('user_name', result['user']['data_karyawan']?['nama_lengkap'] ?? 'Karyawan');
+      await prefs.setString('user_email', result['user']['email'] ?? '');
+      await prefs.setString('user_role', result['user']['role'] ?? 'karyawan');
+      await prefs.setString('foto_profile', result['user']['data_karyawan']?['foto'] ?? '');
+      await prefs.setString('last_login_date', tanggalHariIni);
 
       _showSnackBar(
         'Selamat Datang, ${result['user']?['data_karyawan']?['nama_lengkap'] ?? 'User'}!',
         Colors.green,
       );
 
-      // Pindah ke HomePage
-      Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) => const MainPage()),
-      (Route<dynamic> route) => false,
-);
+      if(mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (context) => const MainPage()),
+          (Route<dynamic> route) => false,
+        );
+      }
     } else {
-      // Tampilkan pesan error yang dikirim oleh AuthService/Laravel
       _showSnackBar(
         result['message'],
         Colors.red,

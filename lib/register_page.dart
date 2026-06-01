@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'services/api_constants.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
+import 'login_page.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -98,14 +99,22 @@ class _RegisterPageState extends State<RegisterPage> {
       if ((res.statusCode == 200 || res.statusCode == 201) && data['success'] == true) {
           _showSnackBar(data['message'] ?? 'Registrasi berhasil', Colors.green);
           Future.delayed(const Duration(seconds: 2), () {
-          if (!mounted) return;
-          Navigator.pop(context);
+            if (!mounted) return;
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) => const LoginPage()),
+              (Route<dynamic> route) => false,
+            );
         });
       } else if (res.statusCode == 500) {
           _showSnackBar(data['message'] ?? 'Gagal mengirim pesan aktivasi, Silahkan Hubungi Admin', Colors.orange);
             Future.delayed(const Duration(seconds: 2), () {
-            if (!mounted) return;
-            Navigator.pop(context);
+              if (!mounted) return;
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginPage()),
+                (Route<dynamic> route) => false,
+              );
           });
       } else {
           if (data['errors'] != null) {
@@ -121,7 +130,7 @@ class _RegisterPageState extends State<RegisterPage> {
           }
       }
     } catch (e) {
-      print("REGISTER ERROR: $e");
+      // print("REGISTER ERROR: $e");
       _showSnackBar('Koneksi gagal. Pastikan server berjalan!', Colors.red);
     } finally {
       setState(() => _isLoading = false);

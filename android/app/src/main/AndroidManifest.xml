@@ -13,7 +13,7 @@
     <application
         android:label="absensi_tunas_jaya"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher"
+        android:icon="@mipmap/launcher_icon"
         android:usesCleartextTraffic="true">
         
         <activity
@@ -40,14 +40,8 @@
             android:name="flutterEmbedding"
             android:value="2" />
 
-        <receiver
-            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED"/>
-                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED"/>
-            </intent-filter>
-        </receiver>
+        <receiver android:name="me.carda.awesome_notifications.core.broadcasters.receivers.AwesomeBroadcastReceiver" android:exported="true" />
+        <receiver android:name="me.carda.awesome_notifications.core.broadcasters.receivers.ScheduledNotificationReceiver" android:exported="true" />
 
     </application>
 

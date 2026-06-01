@@ -3,6 +3,8 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'login_page.dart';
 import 'register_page.dart';
+import 'services/auth_service.dart';
+import 'main_page.dart';
 
 
 void main() async {
@@ -51,7 +53,25 @@ class MyApp extends StatelessWidget {
       ),
 
 
-      home: const  OnboardingPageFinal(), 
+      home: FutureBuilder<String>(
+        future: AuthService.tentukanHalamanAwal(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator(color: Color(0xFF3498DB))),
+            );
+          }
+          if (snapshot.hasData) {
+            if (snapshot.data == 'home') {
+              return const MainPage();
+            } else if (snapshot.data == 'login') {
+              return const LoginPage();
+            }
+          }
+
+          return const OnboardingPageFinal();
+        },
+      ),
 
     );
   }
@@ -88,6 +108,13 @@ class _OnboardingPageFinalState extends State<OnboardingPageFinal> {
       'desc' : 'Silakan masuk ke akun Anda untuk mulai melakukan absensi. Pilih metode masuk yang telah diberikan oleh pengawas Anda.',
     },
   ];
+
+  void _selesaikanOnboarding(Widget targetPage) async {
+    await AuthService.setOnboardingSelesai(); // Kunci status agar tidak muncul lagi
+    if (mounted) {
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => targetPage));
+    }
+  }
 
   Widget _buildIndicator(int index) {
     final isActive = index == _currentIndex;
@@ -154,8 +181,7 @@ class _OnboardingPageFinalState extends State<OnboardingPageFinal> {
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
-                            onPressed: () => Navigator.push(context,
-                                MaterialPageRoute(builder: (_) => const LoginPage())),
+                            onPressed: () => _selesaikanOnboarding(const LoginPage()),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF3498DB),
                               padding: const EdgeInsets.symmetric(vertical: 14),
@@ -170,8 +196,7 @@ class _OnboardingPageFinalState extends State<OnboardingPageFinal> {
                         SizedBox(
                           width: double.infinity,
                           child: OutlinedButton(
-                            onPressed: () => Navigator.push(context,
-                                MaterialPageRoute(builder: (_) => const RegisterPage())),  
+                            onPressed: () => _selesaikanOnboarding(const RegisterPage()),
                             style: OutlinedButton.styleFrom(
                               side   : const BorderSide(color: Color(0xFF3498DB), width: 1.5),
                               padding: const EdgeInsets.symmetric(vertical: 14),

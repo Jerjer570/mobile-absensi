@@ -168,6 +168,7 @@ class _HistoryPageState extends State<HistoryPage> {
                       child: TableCalendar(
                         firstDay: DateTime.utc(2020, 1, 1),
                         lastDay: DateTime.utc(2030, 12, 31),
+                        locale: 'id_ID',
                         focusedDay: _focusedDay,
                         rangeStartDay: _rangeStart,
                         rangeEndDay: _rangeEnd,

@@ -24,11 +24,21 @@ dependencies:
   timezone: ^0.9.4
   image: ^4.2.0
   file_picker: ^11.0.2
+  
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.13.1
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/images/favicon.png"
+  
+  adaptive_icon_background: "#E4E9F2"
+  adaptive_icon_foreground: "assets/images/favicon.png"
 
 flutter:
   uses-material-design: true
@@ -49,6 +59,7 @@ flutter:
     - assets/images/masuk.png
     - assets/images/keluar.png
     - assets/images/totaljam.png
+    - assets/images/favicon.png
 
   fonts:
     - family: Inter
@@ -73,3 +84,4 @@ flutter:
           weight: 400
         - asset: assets/fonts/Roboto-Light.ttf
           weight: 300
+  

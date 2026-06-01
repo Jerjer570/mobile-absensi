@@ -231,11 +231,42 @@ class AuthService {
         'message': data['message'] ?? 'Registrasi gagal',
       };
     } catch (e) {
-      print("REGISTER ERROR: $e");
       return {
         'success': false,
         'message': 'Koneksi gagal ke server',
       };
     }
+  }
+
+
+
+
+
+  static Future<String> tentukanHalamanAwal() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    bool isFirstTime = prefs.getBool('is_first_time') ?? true;
+    if (isFirstTime) {
+      return 'onboarding';
+    }
+
+    String? token = prefs.getString('auth_token');
+    String? tanggalLoginTerakhir = prefs.getString('last_login_date');
+
+    if (token != null && tanggalLoginTerakhir != null) {
+      String tanggalHariIni = DateTime.now().toIso8601String().split('T')[0];
+      if (tanggalLoginTerakhir == tanggalHariIni) {
+        return 'home';
+      } else {
+        await prefs.remove('auth_token');
+        await prefs.remove('last_login_date');
+      }
+    }
+    return 'login';
+  }
+
+  static Future<void> setOnboardingSelesai() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('is_first_time', false);
   }
 }
